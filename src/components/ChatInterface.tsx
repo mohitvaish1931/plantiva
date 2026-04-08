@@ -51,14 +51,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onBack, initialPlant }) =
     hasInitializedRef.current = true;
 
     if (initialPlant) {
-      const cleanDiagnosis = initialPlant.diagnosis?.includes('Oops') 
-        ? "Recovering from environmental stress (Awaiting new scan)" 
-        : initialPlant.diagnosis;
+      const plantName = initialPlant.name || 'your plant';
+      const cleanDiagnosis = (initialPlant.diagnosis && !initialPlant.diagnosis.includes('Oops')) 
+        ? initialPlant.diagnosis 
+        : "Recovering from environmental stress (Awaiting new scan)";
 
       const plantMessage: Message = {
         id: 'initial-plant',
         type: 'bot',
-        content: `🌿 I see you're checking on your **${initialPlant.name}**. \n\nIts last diagnosis was: *${cleanDiagnosis}*\n\nHow would you like to proceed? I can give you more care tips, check for new symptoms, or provide a detailed treatment plan!`,
+        content: `🌿 I see you're checking on your **${plantName}**. \n\nIts last diagnosis was: *${cleanDiagnosis}*\n\nHow would you like to proceed? I can give you more care tips, check for new symptoms, or provide a detailed treatment plan!`,
         timestamp: new Date(),
         imageUrl: initialPlant.image,
         options: [
@@ -70,7 +71,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onBack, initialPlant }) =
         emoji: '🌿'
       };
       setMessages([plantMessage]);
-      setConversationHistory([{ role: 'assistant', content: `The user is asking about their ${initialPlant.name} which has the diagnosis: ${initialPlant.diagnosis}.` }]);
+      setConversationHistory([{ role: 'assistant', content: `The user is asking about their ${plantName} which has the diagnosis: ${initialPlant.diagnosis || 'unknown'}.` }]);
     } else {
       const welcomeMessage: Message = {
         id: '1',

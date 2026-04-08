@@ -1,11 +1,24 @@
+const path = require('path');
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-require('dotenv').config();
+
+// Load environment variables from current or parent directory
+const envPath = path.resolve(process.cwd(), '.env');
+const parentEnvPath = path.resolve(__dirname, '..', '.env');
+require('dotenv').config({ path: parentEnvPath });
+require('dotenv').config({ path: envPath }); // Prefer current directory if exists
 
 const app = express();
 app.use(express.json());
 app.use(cors());
+
+// Debug Environment (Safe-ish)
+console.log('--- Environment Check ---');
+console.log('Project Root:', path.resolve(__dirname, '..'));
+console.log('OpenRouter Key Configured:', !!process.env.OPENROUTER_API_KEY);
+console.log('Hugging Face Key Configured:', !!process.env.HUGGING_FACE_API_KEY);
+console.log('--- ---');
 
 // MongoDB Connection
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/plant_doctor';
@@ -88,12 +101,12 @@ app.post('/api/chat', async (req, res) => {
       locationContext = 'Location not provided by user yet.',
     } = req.body;
 
-    const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
-    const HUGGING_FACE_API_KEY = process.env.HUGGING_FACE_API_KEY || '';
-    const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-001';
-    const HUGGING_FACE_MODEL = process.env.HUGGING_FACE_MODEL || 'nateraw/vit-plant-classifier';
-    const SITE_URL = process.env.SITE_URL || 'https://plantiva-beta.vercel.app';
-    const SITE_NAME = process.env.SITE_NAME || 'Plantiva AI Assistant';
+    const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || process.env.VITE_OPENROUTER_API_KEY || '';
+    const HUGGING_FACE_API_KEY = process.env.HUGGING_FACE_API_KEY || process.env.VITE_HUGGING_FACE_API_KEY || '';
+    const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || process.env.VITE_OPENROUTER_MODEL || 'google/gemini-2.0-flash-001';
+    const HUGGING_FACE_MODEL = process.env.HUGGING_FACE_MODEL || process.env.VITE_HUGGING_FACE_MODEL || 'nateraw/vit-plant-classifier';
+    const SITE_URL = process.env.SITE_URL || process.env.VITE_SITE_URL || 'https://plantiva-beta.vercel.app';
+    const SITE_NAME = process.env.SITE_NAME || process.env.VITE_SITE_NAME || 'Plantiva AI Assistant';
 
     if (!OPENROUTER_API_KEY) {
       return res.status(500).json({ error: 'Server error: OpenRouter API key is not configured.' });
