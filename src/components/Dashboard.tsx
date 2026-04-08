@@ -14,7 +14,10 @@ import {
   ChevronRight,
   ShieldCheck,
   Zap,
-  Info
+  Info,
+  Sun,
+  Calendar,
+  Waves
 } from 'lucide-react';
 import { weatherService, WeatherData } from '../services/weatherService';
 import PlantMap from './PlantMap';
@@ -30,6 +33,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
   const [coords, setCoords] = useState<{ lat: number, lon: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [plants, setPlants] = useState<any[]>([]);
+  const [showCareModal, setShowCareModal] = useState(false);
+  const [careSuccess, setCareSuccess] = useState(false);
 
   useEffect(() => {
     const savedName = localStorage.getItem('learnerbot_username') || 'Gardener';
@@ -135,11 +140,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
         });
       }
 
-      if (weather.aqi > 2) {
+      if (weather.uvIndex > 5) {
         alerts.push({
-          title: "Air Pollution Level",
-          desc: "Moderate to high pollution can affect plant stomata. Monitor leaf health.",
-          icon: <Info className="w-5 h-5 text-yellow-400" />,
+          title: "High UV Exposure",
+          desc: `UV Index is ${weather.uvIndex.toFixed(1)}. Delicate plants may need partial shade.`,
+          icon: <Sun className="w-5 h-5 text-yellow-500" />,
           color: "yellow"
         });
       }
@@ -225,8 +230,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
             <p className="text-lg text-emerald-100/70 leading-relaxed italic">
               "Integrating context-aware and predictive AI, delivering personalized and explainable plant care recommendations."
             </p>
-
-
           </div>
           <div className="absolute top-[-20%] right-[-10%] w-[300px] h-[300px] bg-emerald-500/10 blur-[60px] rounded-full pointer-events-none" />
         </motion.div>
@@ -270,12 +273,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
                       <p className="text-white/40 text-sm">Humidity: {weather.humidity}%</p>
                     </div>
                   </div>
-
                   <div className="grid grid-cols-2 gap-4">
                     <div className="bg-white/10 rounded-2xl p-4 border border-white/5">
                       <div className="flex items-center gap-2 text-white/50 text-xs font-bold uppercase mb-1">
                         <Wind className="w-3 h-3" />
-                        Air Quality
+                        AQI Status
                       </div>
                       <div className={`text-xl font-black ${getAqiColor(weather.aqiStatus)}`}>
                         {weather.aqiStatus}
@@ -284,11 +286,27 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
                     </div>
                     <div className="bg-white/10 rounded-2xl p-4 border border-white/5">
                       <div className="flex items-center gap-2 text-white/50 text-xs font-bold uppercase mb-1">
-                        <Thermometer className="w-3 h-3" />
-                        Wind
+                        <Sun className="w-3 h-3" />
+                        UV Index
                       </div>
-                      <div className="text-xl font-black">{weather.windSpeed}</div>
-                      <p className="text-[10px] text-white/30 mt-1">Meter/Sec</p>
+                      <div className="text-xl font-black text-yellow-400">{weather.uvIndex.toFixed(1)}</div>
+                      <p className="text-[10px] text-white/30 mt-1">Solar Intensity</p>
+                    </div>
+                    <div className="bg-white/10 rounded-2xl p-4 border border-white/5">
+                      <div className="flex items-center gap-2 text-white/50 text-xs font-bold uppercase mb-1">
+                        <Zap className="w-3 h-3" />
+                        Sun Impact
+                      </div>
+                      <div className="text-xl font-black text-emerald-400">{weather.sunImpact}</div>
+                      <p className="text-[10px] text-white/30 mt-1">Risk Level</p>
+                    </div>
+                    <div className="bg-white/10 rounded-2xl p-4 border border-white/5">
+                      <div className="flex items-center gap-2 text-white/50 text-xs font-bold uppercase mb-1">
+                        <Droplets className="w-3 h-3" />
+                        Humidity
+                      </div>
+                      <div className="text-xl font-black text-sky-400">{weather.humidity}%</div>
+                      <p className="text-[10px] text-white/30 mt-1">Air Moisture</p>
                     </div>
                   </div>
                   
@@ -352,10 +370,19 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
               transition={{ delay: 0.2 }}
               className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-md"
             >
-              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                <Bell className="w-5 h-5 text-orange-400" />
-                Active Alerts
-              </h3>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold flex items-center gap-2">
+                  <Bell className="w-5 h-5 text-orange-400" />
+                  Active Alerts
+                </h3>
+                <button 
+                  onClick={() => setShowCareModal(true)}
+                  className="p-2 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl transition-colors group"
+                  title="Schedule Care Alert"
+                >
+                  <Plus className="w-4 h-4 text-emerald-400 group-hover:rotate-90 transition-transform" />
+                </button>
+              </div>
               <div className="space-y-4">
                 {activeAlerts.length > 0 ? (
                   activeAlerts.map((alert, idx) => (
@@ -493,7 +520,81 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
             </div>
           </div>
         </div>
-      </div>
+       </div>
+
+      {/* Care Alert Selection Modal */}
+      {showCareModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-[#0a0f0d]/80 backdrop-blur-sm" onClick={() => setShowCareModal(false)} />
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-full max-w-md bg-[#121a17] border border-emerald-500/30 rounded-3xl p-6 relative z-10 shadow-[0_0_50px_rgba(16,185,129,0.1)]"
+          >
+            <h3 className="text-xl font-bold mb-2 flex items-center gap-2 text-emerald-300">
+              <Calendar className="w-6 h-6" />
+              Schedule Care
+            </h3>
+            <p className="text-white/50 text-sm mb-6">Select a plant from your history to set water or treatment alerts.</p>
+
+            <div className="max-h-[300px] overflow-y-auto pr-2 space-y-3 custom-scrollbar">
+              {plants.length > 0 ? (
+                plants.map((plant, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      setCareSuccess(true);
+                      setTimeout(() => {
+                        setCareSuccess(false);
+                        setShowCareModal(false);
+                      }, 2000);
+                    }}
+                    className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center gap-4 hover:bg-emerald-500/10 hover:border-emerald-500/30 transition-all text-left group"
+                  >
+                    <div className="w-12 h-12 bg-emerald-900/30 rounded-xl flex-shrink-0 overflow-hidden border border-white/5">
+                      {plant.image ? (
+                        <img src={plant.image} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Leaf className="w-6 h-6 text-emerald-700" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-grow">
+                      <p className="font-bold text-white group-hover:text-emerald-300 transition-colors uppercase text-xs tracking-wider">{plant.name || 'Unnamed'}</p>
+                      <div className="flex gap-2 mt-1">
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-500/20">+ Water Alert</span>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/20">+ Treatment</span>
+                      </div>
+                    </div>
+                  </button>
+                ))
+              ) : (
+                <div className="text-center py-10 text-white/20">
+                  <p>No plants in your history yet.</p>
+                </div>
+              )}
+            </div>
+
+            {careSuccess && (
+              <motion.div 
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                className="mt-4 p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-xl text-center text-emerald-300 text-sm font-bold"
+              >
+                Care schedule active! 🌿✨
+              </motion.div>
+            )}
+
+            <button 
+              onClick={() => setShowCareModal(false)}
+              className="w-full mt-6 py-3 text-white/40 text-sm font-bold hover:text-white transition-colors"
+            >
+              Cancel
+            </button>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };

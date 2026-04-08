@@ -52,7 +52,7 @@ class WeatherService {
     try {
       const weatherRes = await fetch(`${this.weatherBaseUrl}?q=${city}&appid=${this.apiKey}&units=metric`);
       const weatherData = await weatherRes.json();
-      
+
       const { lat, lon } = weatherData.coord;
       return this.getWeatherDataByCoords(lat, lon);
     } catch (error) {
