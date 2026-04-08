@@ -79,6 +79,131 @@ app.get('/api/user/:name', async (req, res) => {
   }
 });
 
+app.post('/api/chat', async (req, res) => {
+  try {
+    const {
+      message,
+      conversationHistory = [],
+      imageDataUrl,
+      locationContext = 'Location not provided by user yet.',
+    } = req.body;
+
+    const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
+    const HUGGING_FACE_API_KEY = process.env.HUGGING_FACE_API_KEY || '';
+    const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-001';
+    const HUGGING_FACE_MODEL = process.env.HUGGING_FACE_MODEL || 'nateraw/vit-plant-classifier';
+    const SITE_URL = process.env.SITE_URL || 'https://plantiva-beta.vercel.app';
+    const SITE_NAME = process.env.SITE_NAME || 'Plantiva AI Assistant';
+
+    if (!OPENROUTER_API_KEY) {
+      return res.status(500).json({ error: 'Server error: OpenRouter API key is not configured.' });
+    }
+
+    const systemPrompt = `You are Plant Doctor, an expert AI botanical assistant specializing in plant disease detection, diagnosis, and treatment. Your mission is to help gardeners and plant enthusiasts identify plant problems and provide effective solutions.
+
+Your personality:
+- Friendly, encouraging mentor with relevant emojis
+- Patient, thorough, and positive
+
+Your expertise:
+- Identify plant diseases/pests from descriptions and images
+- Provide accurate treatment (organic/chemical) and cure methods
+- Advise on soil health, watering, and nutrition
+
+When answering:
+- If an image is provided, analyze it carefully for any signs of disease, pests, or nutrient deficiencies
+- Ask clarifying questions about symptoms if needed
+- Provide specific, actionable treatment recommendations
+- Include preventive measures and use clear language
+
+Keep responses engaging but concise. Use markdown formatting.
+
+Current Context:
+${locationContext}`;
+
+    let userContent = message || "I've uploaded a photo of my plant.";
+    let additionalInfo = '';
+
+    if (imageDataUrl && HUGGING_FACE_API_KEY) {
+      try {
+        const hfResponse = await fetch(`https://api-inference.huggingface.co/models/${HUGGING_FACE_MODEL}`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${HUGGING_FACE_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ inputs: imageDataUrl }),
+        });
+
+        if (hfResponse.ok) {
+          const hfData = await hfResponse.json();
+          if (Array.isArray(hfData)) {
+            additionalInfo = `\n\n[Hugging Face Specialized Plant Analysis]:\n${hfData
+              .map((res) => `- ${res.label}: ${(res.score * 100).toFixed(1)}% confidence`)
+              .join('\n')}`;
+          }
+        } else {
+          console.warn('Hugging Face image analysis request failed:', hfResponse.status);
+        }
+      } catch (hfError) {
+        console.error('Hugging Face Analysis Error:', hfError);
+      }
+    }
+
+    if (imageDataUrl && !HUGGING_FACE_API_KEY) {
+      console.warn('Hugging Face key missing; image analysis skipped.');
+    }
+
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...conversationHistory,
+      {
+        role: 'user',
+        content: Array.isArray(userContent)
+          ? [...userContent, { type: 'text', text: additionalInfo }]
+          : userContent + additionalInfo,
+      },
+    ];
+
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        'HTTP-Referer': SITE_URL,
+        'X-Title': SITE_NAME,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: OPENROUTER_MODEL,
+        messages,
+        max_tokens: 1500,
+        temperature: 0.7,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('OpenRouter backend error:', data);
+      return res.status(response.status).json({ error: data.error?.message || data.message || 'OpenRouter request failed.' });
+    }
+
+    if (!data || !data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
+      return res.status(500).json({ error: 'Invalid response structure from OpenRouter API.' });
+    }
+
+    const choice = data.choices[0];
+    if (!choice || !choice.message || typeof choice.message.content !== 'string') {
+      return res.status(500).json({ error: 'Invalid message format in OpenRouter response.' });
+    }
+
+    res.json({ message: choice.message.content.trim() });
+  } catch (err) {
+    console.error('Chat proxy error:', err);
+    res.status(500).json({ error: 'Server error while processing chat request.' });
+  }
+});
+
 const PORT = process.env.PORT || 5005;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 app.listen(PORT, '0.0.0.0', () => {

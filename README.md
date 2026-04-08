@@ -36,11 +36,13 @@ An intelligent, interactive AI plant health assistant designed to help gardeners
    cp .env.example .env
    ```
    
-   Edit `.env` and add your OpenRouter API key:
+   Edit `.env` and add your OpenRouter and Hugging Face keys:
    ```env
-   VITE_OPENROUTER_API_KEY=your_actual_api_key_here
-   VITE_SITE_URL=https://plantdoctor.ai
-   VITE_SITE_NAME=Plant Doctor AI Assistant
+   VITE_API_BASE_URL=http://localhost:5005/api
+   VITE_SITE_URL=https://plantiva-beta.vercel.app
+   VITE_SITE_NAME=Plantiva AI Assistant
+   OPENROUTER_API_KEY=your_openrouter_api_key_here
+   HUGGING_FACE_API_KEY=your_hugging_face_api_key_here
    ```
 
 3. **Start the development server:**
