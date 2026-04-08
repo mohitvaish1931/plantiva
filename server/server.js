@@ -181,16 +181,36 @@ ${locationContext}`;
       console.warn('Hugging Face key missing; image analysis skipped.');
     }
 
+    let userContent = message || "I've uploaded a photo of my plant.";
+    if (additionalInfo) {
+      userContent += additionalInfo;
+    }
+
     const messages = [
       { role: 'system', content: systemPrompt },
       ...conversationHistory,
-      {
-        role: 'user',
-        content: Array.isArray(userContent)
-          ? [...userContent, { type: 'text', text: additionalInfo }]
-          : userContent + additionalInfo,
-      },
     ];
+
+    // Build the user message with image support if available
+    if (imageDataUrl) {
+      messages.push({
+        role: 'user',
+        content: [
+          { type: 'text', text: userContent },
+          {
+            type: 'image_url',
+            image_url: {
+              url: imageDataUrl
+            }
+          }
+        ]
+      });
+    } else {
+      messages.push({
+        role: 'user',
+        content: userContent
+      });
+    }
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
