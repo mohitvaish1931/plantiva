@@ -35,7 +35,8 @@ app.get('/api/status', (req, res) => {
     env: process.env.NODE_ENV,
     mongoStatus: states[status],
     database: mongoose.connection.name,
-    hasKey: !!process.env.OPENROUTER_API_KEY
+    hasOpenRouterKey: !!(process.env.OPENROUTER_API_KEY || process.env.VITE_OPENROUTER_API_KEY),
+    hasHuggingFaceKey: !!(process.env.HUGGING_FACE_API_KEY || process.env.VITE_HUGGING_FACE_API_KEY)
   });
 });
 
