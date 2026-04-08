@@ -148,7 +148,6 @@ Keep responses engaging but concise. Use markdown formatting.
 Current Context:
 ${locationContext}`;
 
-    let userContent = message || "I've uploaded a photo of my plant.";
     let additionalInfo = '';
 
     if (imageDataUrl && HUGGING_FACE_API_KEY) {
