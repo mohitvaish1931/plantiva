@@ -7,6 +7,8 @@ export interface WeatherData {
   windSpeed: number;
   aqi: number;
   aqiStatus: string;
+  uvIndex: number;
+  sunImpact: string;
 }
 
 class WeatherService {
@@ -16,13 +18,18 @@ class WeatherService {
 
   async getWeatherDataByCoords(lat: number, lon: number): Promise<WeatherData> {
     try {
-      // Fetch Weather
+      // 1. Fetch Weather (Main)
       const weatherRes = await fetch(`${this.weatherBaseUrl}?lat=${lat}&lon=${lon}&appid=${this.apiKey}&units=metric`);
       const weatherData = await weatherRes.json();
 
-      // Fetch AQI
+      // 2. Fetch AQI
       const aqiRes = await fetch(`${this.airPollutionBaseUrl}?lat=${lat}&lon=${lon}&appid=${this.apiKey}`);
       const aqiData = await aqiRes.json();
+
+      // 3. Fetch UV Index
+      const uvRes = await fetch(`https://api.openweathermap.org/data/2.5/uvi?lat=${lat}&lon=${lon}&appid=${this.apiKey}`);
+      const uvData = await uvRes.json();
+      const uvValue = uvData.value || 0;
 
       const aqiValue = aqiData.list[0].main.aqi;
       const aqiMap: { [key: number]: string } = {
@@ -40,10 +47,12 @@ class WeatherService {
         humidity: weatherData.main.humidity,
         windSpeed: weatherData.wind.speed,
         aqi: aqiValue,
-        aqiStatus: aqiMap[aqiValue] || "Unknown"
+        aqiStatus: aqiMap[aqiValue] || "Unknown",
+        uvIndex: uvValue,
+        sunImpact: uvValue > 7 ? 'Vhigh' : uvValue > 5 ? 'High' : uvValue > 3 ? 'Moderate' : 'Low'
       };
     } catch (error) {
-      console.error("Error fetching weather/AQI data:", error);
+      console.error("Error fetching weather/AQI/UV data:", error);
       throw error;
     }
   }
@@ -52,7 +61,7 @@ class WeatherService {
     try {
       const weatherRes = await fetch(`${this.weatherBaseUrl}?q=${city}&appid=${this.apiKey}&units=metric`);
       const weatherData = await weatherRes.json();
-
+      
       const { lat, lon } = weatherData.coord;
       return this.getWeatherDataByCoords(lat, lon);
     } catch (error) {
