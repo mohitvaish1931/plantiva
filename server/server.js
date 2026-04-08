@@ -79,7 +79,8 @@ app.get('/api/user/:name', async (req, res) => {
   }
 });
 
-const PORT = 5005;
+const PORT = process.env.PORT || 5005;
+const NODE_ENV = process.env.NODE_ENV || 'development';
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Plant Doctor Backend running on http://localhost:${PORT}`);
+  console.log(`🚀 Plant Doctor Backend running on http://localhost:${PORT} [${NODE_ENV}]`);
 });
