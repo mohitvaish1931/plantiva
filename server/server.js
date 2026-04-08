@@ -22,9 +22,22 @@ console.log('--- ---');
 
 // MongoDB Connection
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/plant_doctor';
+console.log('Connecting to MongoDB...');
 mongoose.connect(MONGO_URI)
   .then(() => console.log('✅ Connected to MongoDB'))
   .catch(err => console.error('❌ MongoDB Connection Error:', err));
+
+// Debug Connection Route
+app.get('/api/status', (req, res) => {
+  const status = mongoose.connection.readyState;
+  const states = ['Disconnected', 'Connected', 'Connecting', 'Disconnecting'];
+  res.json({
+    env: process.env.NODE_ENV,
+    mongoStatus: states[status],
+    database: mongoose.connection.name,
+    hasKey: !!process.env.OPENROUTER_API_KEY
+  });
+});
 
 // User Model
 const userSchema = new mongoose.Schema({
