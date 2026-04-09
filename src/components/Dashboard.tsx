@@ -196,18 +196,27 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
 
       <div className="max-w-6xl mx-auto px-4 pt-8 relative z-10">
         <header className="flex justify-between items-center mb-10">
-          <div className="flex items-center gap-4 group cursor-pointer transition-all duration-500">
+          <div className="flex items-center group cursor-pointer transition-all duration-500">
             <div className="relative">
-              <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full group-hover:bg-emerald-500/40 transition-all duration-500" />
-              <img 
-                src="/logo.png" 
-                alt="Plantiva Logo" 
-                className="h-14 w-auto object-contain relative z-10 drop-shadow-[0_0_15px_rgba(16,185,129,0.4)] group-hover:scale-110 transition-transform duration-500 ease-out" 
-              />
+              {/* Outer Glow */}
+              <div className="absolute inset-[-4px] bg-gradient-to-tr from-emerald-500/50 to-green-300/30 blur-lg rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+              
+              {/* Logo Container - making it circular to match the logo content */}
+              <div className="relative w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-full overflow-hidden border-2 border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.2)] group-hover:shadow-[0_0_30px_rgba(16,185,129,0.4)] group-hover:scale-110 transition-all duration-500 ease-out">
+                <img 
+                  src="/logo.png" 
+                  alt="Plantiva Logo" 
+                  className="w-full h-full object-cover scale-110" 
+                />
+              </div>
             </div>
-            <h1 className="text-[28px] font-black bg-gradient-to-r from-white via-white to-emerald-300 bg-clip-text text-transparent hidden sm:block tracking-tighter">
-              Plantiva
-            </h1>
+            {/* Keeping the text but making it more like a tagline since the logo has the name */}
+            <div className="ml-4 hidden sm:block">
+              <h1 className="text-2xl font-black bg-gradient-to-r from-white to-emerald-300 bg-clip-text text-transparent tracking-tighter leading-none">
+                PLANTIVA
+              </h1>
+              <p className="text-[10px] text-emerald-400 font-bold tracking-[0.2em] uppercase mt-1 opacity-70">AI Botanical Expert</p>
+            </div>
           </div>
           <div className="flex items-center gap-4">
             <button onClick={onLogout} className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white/40 hover:text-white transition-colors border border-white/10 rounded-lg">Logout</button>

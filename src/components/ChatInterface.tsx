@@ -336,7 +336,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onBack, initialPlant }) =
                         {userName}!
                       </h3>
                       <div className="flex items-center justify-center gap-2 text-sm text-emerald-300 font-medium">
-                        <img src="/logo.png" alt="Logo" className="w-5 h-5 object-contain" />
+                        <div className="w-6 h-6 rounded-full bg-white overflow-hidden border border-emerald-500/30">
+                          <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
+                        </div>
                         <span>Plantiva AI</span>
                       </div>
                       <p className="mt-1 text-xs text-slate-400">
@@ -378,8 +380,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onBack, initialPlant }) =
           <div className="bg-white/5 backdrop-blur-md border-b border-white/10 px-8 py-6">
             <div className="flex items-center justify-between max-w-5xl mx-auto gap-4">
               <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md border border-white/30 p-1.5 overflow-hidden">
-                  <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
+                <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center backdrop-blur-md border border-emerald-500/30 overflow-hidden shadow-lg">
+                  <img src="/logo.png" alt="Logo" className="w-full h-full object-cover scale-110" />
                 </div>
                 <div className="space-y-0.5">
                   <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-2">

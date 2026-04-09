@@ -79,16 +79,35 @@ const LandingScreen: React.FC<LandingScreenProps> = ({ onStart }) => {
           </div>
 
           {/* Main heading */}
-          <div className="flex flex-col items-center justify-center mb-6">
-            <motion.img 
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.8, delay: 0.1 }}
-              src="/logo.png" 
-              alt="Plantiva Logo" 
-              className="w-40 h-40 object-contain drop-shadow-[0_0_30px_rgba(16,185,129,0.3)] mb-4" 
-            />
-            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black leading-tight mb-4 text-white drop-shadow-lg">
+          <div className="flex flex-col items-center justify-center mb-10">
+            <div className="relative mb-8">
+              {/* Dynamic Aura */}
+              <motion.div 
+                animate={{ 
+                  scale: [1, 1.2, 1],
+                  opacity: [0.3, 0.6, 0.3] 
+                }}
+                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute inset-[-20px] bg-emerald-500/20 blur-[40px] rounded-full"
+              />
+              
+              {/* Logo Frame */}
+              <motion.div
+                initial={{ scale: 0.5, opacity: 0, rotate: -10 }}
+                animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                transition={{ type: "spring", stiffness: 100, damping: 15, delay: 0.1 }}
+                whileHover={{ scale: 1.05 }}
+                className="relative w-48 h-48 sm:w-64 sm:h-64 bg-white rounded-full p-2 border-4 border-white/20 shadow-[0_0_50px_rgba(16,185,129,0.3)] overflow-hidden group"
+              >
+                <img 
+                  src="/logo.png" 
+                  alt="Plantiva Logo" 
+                  className="w-full h-full object-cover scale-110 group-hover:scale-125 transition-transform duration-700" 
+                />
+              </motion.div>
+            </div>
+
+            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black leading-tight mb-4 text-white drop-shadow-lg tracking-tighter">
               Plantiva<br />
               <span className="text-green-300">Scan & Cure</span>
             </h1>
