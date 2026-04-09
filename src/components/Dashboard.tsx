@@ -14,10 +14,8 @@ import {
   ChevronRight,
   ShieldCheck,
   Zap,
-  Info,
   Sun,
   Calendar,
-  Waves,
   CheckCircle,
   Activity
 } from 'lucide-react';
@@ -54,7 +52,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
 
     // Dynamic task generation based on plant history
     if (plantsWithScores.length > 0) {
-      const generatedTasks = plantsWithScores.flatMap((plant, idx) => {
+      const generatedTasks = plantsWithScores.flatMap((plant: any, idx: number) => {
         const pTasks = [
           { 
             id: `water-${idx}`, 
