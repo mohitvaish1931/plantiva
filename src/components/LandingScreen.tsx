@@ -79,10 +79,20 @@ const LandingScreen: React.FC<LandingScreenProps> = ({ onStart }) => {
           </div>
 
           {/* Main heading */}
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black leading-tight mb-4 text-white drop-shadow-lg">
-            Plantiva<br />
-            <span className="text-green-300">Scan & Cure</span>
-          </h1>
+          <div className="flex flex-col items-center justify-center mb-6">
+            <motion.img 
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.8, delay: 0.1 }}
+              src="/logo.png" 
+              alt="Plantiva Logo" 
+              className="w-40 h-40 object-contain drop-shadow-[0_0_30px_rgba(16,185,129,0.3)] mb-4" 
+            />
+            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black leading-tight mb-4 text-white drop-shadow-lg">
+              Plantiva<br />
+              <span className="text-green-300">Scan & Cure</span>
+            </h1>
+          </div>
 
           {/* Subheading */}
           <p className="text-xl sm:text-2xl text-white/95 max-w-xl mx-auto mb-8 drop-shadow-md font-medium">

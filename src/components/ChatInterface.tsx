@@ -336,7 +336,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onBack, initialPlant }) =
                         {userName}!
                       </h3>
                       <div className="flex items-center justify-center gap-2 text-sm text-emerald-300 font-medium">
-                        <span>🌿 Plantiva</span>
+                        <img src="/logo.png" alt="Logo" className="w-5 h-5 object-contain" />
+                        <span>Plantiva AI</span>
                       </div>
                       <p className="mt-1 text-xs text-slate-400">
                         AI Botanical Assistant
@@ -377,12 +378,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onBack, initialPlant }) =
           <div className="bg-white/5 backdrop-blur-md border-b border-white/10 px-8 py-6">
             <div className="flex items-center justify-between max-w-5xl mx-auto gap-4">
               <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-md border border-white/30">
-                  <span className="text-2xl">🌿</span>
+                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md border border-white/30 p-1.5 overflow-hidden">
+                  <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
                 </div>
                 <div className="space-y-0.5">
                   <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-2">
-                    <span>🌱</span> Plantiva Scan
+                    Plantiva Scan
                   </h1>
                   <div className="flex items-center space-x-2">
                     <span className="w-2 h-2 bg-white rounded-full animate-pulse" />

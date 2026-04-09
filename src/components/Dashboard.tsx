@@ -57,13 +57,19 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
 
     const fetchByIP = async () => {
       try {
-        const res = await fetch('https://ipapi.co/json/');
+        // Try multiple services for better reliability and accuracy
+        let res = await fetch('https://ipapi.co/json/');
+        if (!res.ok) res = await fetch('https://ip-api.com/json/');
+        
         const data = await res.json();
-        if (data.latitude && data.longitude) {
-          const lat = data.latitude;
-          const lon = data.longitude;
+        const lat = data.latitude || data.lat;
+        const lon = data.longitude || data.lon;
+        const region = data.city || data.region || 'your area';
+        
+        if (lat && lon) {
           setCoords({ lat, lon });
           fetchWeather(lat, lon);
+          console.log(`📍 Location accurately detected via IP: ${region}`);
         } else {
           throw new Error("IP Geolocation failed");
         }
@@ -85,9 +91,17 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
           const { latitude, longitude } = position.coords;
           setCoords({ lat: latitude, lon: longitude });
           fetchWeather(latitude, longitude);
+          console.log(`🎯 High-accuracy GPS location active: ${latitude}, ${longitude}`);
         },
-        () => fetchByIP(),
-        { timeout: 5000 }
+        () => {
+          console.warn("GPS access denied, falling back to IP triangulation...");
+          fetchByIP();
+        },
+        { 
+          timeout: 10000, 
+          enableHighAccuracy: true,
+          maximumAge: 0
+        }
       );
     } else {
       fetchByIP();
@@ -182,12 +196,17 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
 
       <div className="max-w-6xl mx-auto px-4 pt-8 relative z-10">
         <header className="flex justify-between items-center mb-10">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-900/20">
-                <Leaf className="w-6 h-6 text-white" />
-              </div>
-              <span className="bg-gradient-to-r from-white to-emerald-300 bg-clip-text text-transparent">Plantiva</span>
+          <div className="flex items-center gap-4 group cursor-pointer transition-all duration-500">
+            <div className="relative">
+              <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full group-hover:bg-emerald-500/40 transition-all duration-500" />
+              <img 
+                src="/logo.png" 
+                alt="Plantiva Logo" 
+                className="h-14 w-auto object-contain relative z-10 drop-shadow-[0_0_15px_rgba(16,185,129,0.4)] group-hover:scale-110 transition-transform duration-500 ease-out" 
+              />
+            </div>
+            <h1 className="text-[28px] font-black bg-gradient-to-r from-white via-white to-emerald-300 bg-clip-text text-transparent hidden sm:block tracking-tighter">
+              Plantiva
             </h1>
           </div>
           <div className="flex items-center gap-4">
