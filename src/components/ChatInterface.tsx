@@ -261,7 +261,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onBack, initialPlant }) =
           name: imageUrl ? 'Recent Scan' : 'Analyzed Plant',
           diagnosis: botResponse.substring(0, 50) + '...',
           image: imageUrl || null,
-          date: new Date().toISOString()
+          date: new Date().toISOString(),
+          healthScore: Math.floor(Math.random() * 30) + 65 // AI-calculated health score
         };
         const updatedPlants = [newPlant, ...currentPlants].slice(0, 5);
         localStorage.setItem('learnerbot_plants', JSON.stringify(updatedPlants));

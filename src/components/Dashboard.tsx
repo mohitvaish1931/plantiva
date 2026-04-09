@@ -52,12 +52,37 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
     }));
     setPlants(plantsWithScores);
 
-    // Initial tasks
-    setTasks([
-      { id: 1, title: 'Water Morning Star', type: 'water', status: 'pending' },
-      { id: 2, title: 'Inspect Leaf Spots', type: 'scan', status: 'pending' },
-      { id: 3, title: 'Apply Nutrient Mist', type: 'treat', status: 'completed' },
-    ]);
+    // Dynamic task generation based on plant history
+    if (plantsWithScores.length > 0) {
+      const generatedTasks = plantsWithScores.flatMap((plant, idx) => {
+        const pTasks = [
+          { 
+            id: `water-${idx}`, 
+            title: `Hydrate ${plant.name || 'Plant'}`, 
+            type: 'Watering', 
+            status: plant.healthScore > 90 ? 'completed' : 'pending' 
+          }
+        ];
+        
+        // If plant has a diagnosis, add a treatment task
+        if (plant.diagnosis && !plant.diagnosis.includes('Healthy')) {
+          pTasks.push({ 
+            id: `treat-${idx}`, 
+            title: `Treat ${plant.name || 'Plant'}`, 
+            type: 'Recovery', 
+            status: 'pending' 
+          });
+        }
+        
+        return pTasks;
+      }).slice(0, 5); // Limit to top 5 tasks
+      setTasks(generatedTasks);
+    } else {
+      setTasks([
+        { id: 1, title: 'Scan your first plant', type: 'Onboarding', status: 'pending' },
+        { id: 2, title: 'Check local humidity', type: 'Environment', status: 'completed' },
+      ]);
+    }
 
     const fetchWeather = async (lat: number, lon: number) => {
       try {
@@ -344,15 +369,24 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
               </div>
               <div className="space-y-3">
                 {tasks.map((task) => (
-                  <div key={task.id} className="p-3 bg-white/5 border border-white/5 rounded-2xl flex items-center justify-between group hover:bg-white/10 transition-all cursor-pointer">
+                  <motion.div 
+                    key={task.id} 
+                    whileHover={{ scale: 1.02, x: 5 }}
+                    className="p-3.5 bg-white/5 border border-white/5 rounded-2xl flex items-center justify-between group hover:bg-emerald-500/5 hover:border-emerald-500/20 transition-all cursor-pointer shadow-lg"
+                  >
                     <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg ${task.status === 'completed' ? 'bg-emerald-500/20' : 'bg-white/5'}`}>
+                      <div className={`p-2 rounded-xl border flex items-center justify-center ${task.status === 'completed' ? 'bg-emerald-500/20 border-emerald-500/30' : 'bg-white/5 border-white/10'}`}>
                         {task.status === 'completed' ? <CheckCircle className="w-4 h-4 text-emerald-400" /> : <div className="w-4 h-4 rounded-full border-2 border-white/20" />}
                       </div>
-                      <span className={`text-xs font-medium ${task.status === 'completed' ? 'text-white/30 line-through' : 'text-white/80'}`}>{task.title}</span>
+                      <div className="space-y-0.5">
+                        <span className={`text-xs font-bold block ${task.status === 'completed' ? 'text-white/30 line-through' : 'text-white/90'}`}>{task.title}</span>
+                        <span className="text-[9px] text-white/20 uppercase tracking-widest font-bold">{task.type} Plan</span>
+                      </div>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-white/20 group-hover:text-white/50 transition-colors" />
-                  </div>
+                    <div className="p-1.5 bg-white/5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                      <ChevronRight className="w-3.5 h-3.5 text-emerald-400" />
+                    </div>
+                  </motion.div>
                 ))}
               </div>
             </motion.div>
