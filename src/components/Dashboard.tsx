@@ -17,7 +17,9 @@ import {
   Info,
   Sun,
   Calendar,
-  Waves
+  Waves,
+  CheckCircle,
+  Activity
 } from 'lucide-react';
 import { weatherService, WeatherData } from '../services/weatherService';
 import PlantMap from './PlantMap';
@@ -35,19 +37,42 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
   const [plants, setPlants] = useState<any[]>([]);
   const [showCareModal, setShowCareModal] = useState(false);
   const [careSuccess, setCareSuccess] = useState(false);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [envMatch, setEnvMatch] = useState<number>(0);
 
   useEffect(() => {
     const savedName = localStorage.getItem('learnerbot_username') || 'Gardener';
     setUserName(savedName);
 
     const savedPlants = JSON.parse(localStorage.getItem('learnerbot_plants') || '[]');
-    setPlants(savedPlants);
+    // Add health scores if missing
+    const plantsWithScores = savedPlants.map((p: any) => ({
+      ...p,
+      healthScore: p.healthScore || Math.floor(Math.random() * 20) + 75 // Mock health score for existing plants
+    }));
+    setPlants(plantsWithScores);
+
+    // Initial tasks
+    setTasks([
+      { id: 1, title: 'Water Morning Star', type: 'water', status: 'pending' },
+      { id: 2, title: 'Inspect Leaf Spots', type: 'scan', status: 'pending' },
+      { id: 3, title: 'Apply Nutrient Mist', type: 'treat', status: 'completed' },
+    ]);
 
     const fetchWeather = async (lat: number, lon: number) => {
       try {
         const data = await weatherService.getWeatherDataByCoords(lat, lon);
         setWeather(data);
         localStorage.setItem('learnerbot_weather', JSON.stringify(data));
+        
+        // Feature 3: Micro-Climate Comparison Logic
+        // Calculate an "Environmental Match" score based on humidity and temp for generic tropical plants
+        let match = 100;
+        if (data.humidity < 40) match -= 15;
+        if (data.temp > 32) match -= 10;
+        if (data.uvIndex > 7) match -= 10;
+        setEnvMatch(Math.max(60, match));
+
       } catch (err) {
         console.error("Failed to fetch weather", err);
       } finally {
@@ -292,13 +317,44 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
                     </div>
                   </div>
                   <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl">
-                    <div className="flex items-start gap-3">
-                      <Info className="w-5 h-5 text-emerald-400 mt-0.5 shrink-0" />
-                      <p className="text-xs text-emerald-200/80 leading-relaxed">{weather.aqi <= 2 ? "Perfect conditions for outdoor plants. Air quality is healthy." : "Moderate air pollution. Monitor leaf health."}</p>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Activity className="w-4 h-4 text-emerald-400" />
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-200/60">Auto-Calibration Match</span>
+                      </div>
+                      <span className="text-sm font-black text-emerald-400">{envMatch}%</span>
                     </div>
+                    <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                      <motion.div 
+                        initial={{ width: 0 }} 
+                        animate={{ width: `${envMatch}%` }} 
+                        className="h-full bg-gradient-to-r from-emerald-500 to-green-300 shadow-[0_0_10px_rgba(16,185,129,0.5)]" 
+                      />
+                    </div>
+                    <p className="text-[9px] text-emerald-200/40 mt-2 leading-tight">Your micro-climate is {envMatch > 85 ? 'ideal' : 'partially compatible'} for your current tropical species collection.</p>
                   </div>
                 </div>
               ) : <div className="text-center py-10 text-white/30">Unable to load weather data.</div>}
+            </motion.div>
+
+            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.18 }} className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-md">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold flex items-center gap-2"><CheckCircle className="w-5 h-5 text-emerald-400" />Daily Routine</h3>
+                <span className="text-[10px] font-bold text-white/40 uppercase bg-white/5 px-2 py-1 rounded-md">{tasks.filter(t => t.status === 'completed').length}/{tasks.length} Done</span>
+              </div>
+              <div className="space-y-3">
+                {tasks.map((task) => (
+                  <div key={task.id} className="p-3 bg-white/5 border border-white/5 rounded-2xl flex items-center justify-between group hover:bg-white/10 transition-all cursor-pointer">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-lg ${task.status === 'completed' ? 'bg-emerald-500/20' : 'bg-white/5'}`}>
+                        {task.status === 'completed' ? <CheckCircle className="w-4 h-4 text-emerald-400" /> : <div className="w-4 h-4 rounded-full border-2 border-white/20" />}
+                      </div>
+                      <span className={`text-xs font-medium ${task.status === 'completed' ? 'text-white/30 line-through' : 'text-white/80'}`}>{task.title}</span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-white/20 group-hover:text-white/50 transition-colors" />
+                  </div>
+                ))}
+              </div>
             </motion.div>
 
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 }} className="bg-white/5 border border-white/10 rounded-3xl p-4 backdrop-blur-md overflow-hidden relative shadow-2xl h-[380px]">
@@ -349,9 +405,20 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
                         {plant.image ? <img src={plant.image} alt={plant.name} className="w-full h-full object-cover" /> : <Leaf className="w-10 h-10 text-emerald-700" />}
                       </div>
                       <div>
-                        <p className="font-bold text-white uppercase text-xs tracking-wider">{plant.name || 'Unnamed'}</p>
-                        <p className="text-xs text-white/40">{plant.diagnosis || 'Healthy'}</p>
-                        <div className="mt-2 flex items-center gap-1"><div className="w-full h-1 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-emerald-500 w-[85%]" /></div><span className="text-[10px] text-emerald-400 font-bold">85%</span></div>
+                        <div className="flex justify-between items-center mb-1">
+                          <p className="font-bold text-white uppercase text-xs tracking-wider">{plant.name || 'Unnamed'}</p>
+                          <span className={`text-[10px] font-black ${plant.healthScore > 85 ? 'text-emerald-400' : 'text-orange-400'}`}>Score: {plant.healthScore}</span>
+                        </div>
+                        <p className="text-xs text-white/40 mb-2">{plant.diagnosis || 'Healthy'}</p>
+                        <div className="flex items-center gap-2">
+                          <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                            <motion.div 
+                              initial={{ width: 0 }} 
+                              animate={{ width: `${plant.healthScore}%` }} 
+                              className={`h-full ${plant.healthScore > 85 ? 'bg-emerald-500' : 'bg-orange-500'}`} 
+                            />
+                          </div>
+                        </div>
                       </div>
                     </motion.div>
                   ))}
@@ -386,6 +453,18 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
           </motion.div>
         </div>
       )}
+      {/* Feature 2: Floating Scan Button */}
+      <motion.button 
+        whileHover={{ scale: 1.1, rotate: 5 }} 
+        whileTap={{ scale: 0.9 }} 
+        onClick={() => onStartChat()}
+        className="fixed bottom-8 right-8 z-[90] w-16 h-16 bg-gradient-to-br from-emerald-400 to-green-600 rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(16,185,129,0.4)] border-2 border-white/20 group"
+      >
+        <Camera className="w-8 h-8 text-white group-hover:scale-110 transition-transform" />
+        <div className="absolute -top-12 right-0 bg-white/10 backdrop-blur-md px-3 py-1 rounded-lg border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+          <p className="text-[10px] font-bold text-white uppercase tracking-widest">Instant AI Scan</p>
+        </div>
+      </motion.button>
     </div>
   );
 };
