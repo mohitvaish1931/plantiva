@@ -1,8 +1,8 @@
 
 const getApiBase = () => {
-  let baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5005/api';
+  let baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
   if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
-  if (!baseUrl.endsWith('/api')) baseUrl += '/api';
+  if (baseUrl.startsWith('http') && !baseUrl.endsWith('/api')) baseUrl += '/api';
   return baseUrl;
 };
 
