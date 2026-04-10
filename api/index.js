@@ -112,7 +112,7 @@ app.post('/api/chat', async (req, res) => {
 
     if (!OPENROUTER_API_KEY) {
       console.error('SERVER_ERROR: OPENROUTER_API_KEY is missing.');
-      return res.status(200).json({ message: "🌿 **Configuration Error:** My API key is missing on the server. Please check Render environment variables." });
+      return res.status(200).json({ message: "🌿 **Configuration Error:** My API key is missing on the server. Please check Vercel environment variables." });
     }
 
     let finalContent = message;
