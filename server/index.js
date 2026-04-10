@@ -1,7 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const path = require('path');
+const fetch = require('node-fetch');
 
 const app = express();
 app.use(express.json());
