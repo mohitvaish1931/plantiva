@@ -43,6 +43,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
   const [envMatch, setEnvMatch] = useState<number>(0);
   const [view, setView] = useState<'dashboard' | 'timeline'>('dashboard');
   const [selectedPlantId, setSelectedPlantId] = useState<string | null>(null);
+  const notifiedOptimalRef = React.useRef(false);
 
   useEffect(() => {
     const savedName = localStorage.getItem('learnerbot_username') || 'Gardener';
@@ -179,6 +180,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
       if (weather.temp < 10) notificationService.notifyFrostWarning(weather.temp);
       if (weather.humidity < 40) notificationService.notifyLowHumidity(weather.humidity);
       if (weather.uvIndex > 5) notificationService.notifyHighUV(weather.uvIndex);
+      
+      // Perfect Weather Logic (once per session)
+      if (!notifiedOptimalRef.current && 
+          weather.temp >= 18 && weather.temp <= 26 && 
+          weather.humidity >= 45 && weather.humidity <= 70) {
+        notificationService.notifyOptimalConditions();
+        notifiedOptimalRef.current = true;
+      }
     }
 
     if (navigator.geolocation) {

@@ -94,6 +94,13 @@ class NotificationService {
     });
   }
 
+  notifyOptimalConditions() {
+    this.sendNotification("🌈 Perfect Botanical Weather!", {
+      body: "Current temperature and humidity are in the optimal range for plant growth. Your garden is thriving! ✨",
+      icon: "/logo.png"
+    });
+  }
+
   notifyTaskCompleted(taskTitle: string) {
     this.sendNotification("✅ Task Accomplished", {
       body: `Great job on: ${taskTitle}. +20 Botanical XP earned!`,
