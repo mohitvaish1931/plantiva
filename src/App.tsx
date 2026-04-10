@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
+import { Plant } from './types';
 import LandingScreen from './components/LandingScreen';
 import ChatInterface from './components/ChatInterface';
 import Dashboard from './components/Dashboard.tsx';
@@ -11,13 +12,13 @@ function App() {
     localStorage.getItem('learnerbot_username') ? 'dashboard' : 'landing'
   );
 
-  const [selectedPlant, setSelectedPlant] = useState<any>(null);
+  const [selectedPlant, setSelectedPlant] = useState<Plant | null>(null);
 
   const handleStart = () => {
     setCurrentScreen('dashboard');
   };
 
-  const handleShowChat = (plant?: any) => {
+  const handleShowChat = (plant?: Plant) => {
     setSelectedPlant(plant || null);
     setCurrentScreen('chat');
   };

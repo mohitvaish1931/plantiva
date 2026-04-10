@@ -21,9 +21,11 @@ import {
 } from 'lucide-react';
 import { weatherService, WeatherData } from '../services/weatherService';
 import PlantMap from './PlantMap';
+import PlantTimeline from './PlantTimeline';
+import { Plant } from '../types';
 
 interface DashboardProps {
-  onStartChat: (plant?: any) => void;
+  onStartChat: (plant?: Plant) => void;
   onLogout: () => void;
 }
 
@@ -32,23 +34,46 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [coords, setCoords] = useState<{ lat: number, lon: number } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [plants, setPlants] = useState<any[]>([]);
+  const [plants, setPlants] = useState<Plant[]>([]);
   const [showCareModal, setShowCareModal] = useState(false);
   const [careSuccess, setCareSuccess] = useState(false);
   const [tasks, setTasks] = useState<any[]>([]);
   const [envMatch, setEnvMatch] = useState<number>(0);
+  const [view, setView] = useState<'dashboard' | 'timeline'>('dashboard');
+  const [selectedPlantId, setSelectedPlantId] = useState<string | null>(null);
 
   useEffect(() => {
     const savedName = localStorage.getItem('learnerbot_username') || 'Gardener';
     setUserName(savedName);
 
     const savedPlants = JSON.parse(localStorage.getItem('learnerbot_plants') || '[]');
-    // Add health scores if missing
-    const plantsWithScores = savedPlants.map((p: any) => ({
+    // Add health scores and timeline if missing
+    const plantsWithScores: Plant[] = savedPlants.map((p: any) => ({
       ...p,
-      healthScore: p.healthScore || Math.floor(Math.random() * 20) + 75 // Mock health score for existing plants
+      id: p.id || `plant-${Math.random().toString(36).substr(2, 9)}`,
+      healthScore: p.healthScore || Math.floor(Math.random() * 20) + 75,
+      addedAt: p.addedAt || new Date().toISOString(),
+      timeline: p.timeline || (p.image ? [
+        {
+          id: `initial-${p.id}`,
+          date: new Date(Date.now() - 86400000 * 3).toISOString(), // 3 days ago
+          image: p.image,
+          status: 'initial diagnosis',
+          healthScore: p.healthScore - 15,
+          note: 'Plant showed signs of wilting and leaf spots. AI recommended increased humidity.'
+        },
+        {
+          id: `recovery-${p.id}`,
+          date: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
+          image: p.image,
+          status: 'showing recovery',
+          healthScore: p.healthScore - 5,
+          note: 'New growth appearing. Leaf spots are stabilizing.'
+        }
+      ] : [])
     }));
     setPlants(plantsWithScores);
+    localStorage.setItem('learnerbot_plants', JSON.stringify(plantsWithScores));
 
     // Dynamic task generation based on plant history
     if (plantsWithScores.length > 0) {
@@ -177,6 +202,19 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
     }
   };
 
+  const handlePlantClick = (plant: Plant) => {
+    setSelectedPlantId(plant.id);
+    setView('timeline');
+    // Save to local storage for persistence
+    localStorage.setItem('learnerbot_last_viewed_plant', plant.id);
+  };
+
+  const handleAddTimelineEntry = (plantId: string) => {
+    // In a real app, this would open a camera or upload dialog
+    // For now, we'll suggest chatting with the expert to get a new diagnosis
+    onStartChat(plants.find(p => p.id === plantId));
+  };
+
   const getDynamicAlerts = () => {
     const alerts = [];
     if (weather) {
@@ -290,154 +328,164 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
           <div className="absolute top-[-20%] right-[-10%] w-[300px] h-[300px] bg-emerald-500/10 blur-[60px] rounded-full pointer-events-none" />
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
-          {/* Column 1: Environment & Monitoring */}
-          <div className="space-y-6">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-md shadow-xl">
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <p className="text-white/50 text-sm font-medium uppercase tracking-wider">Local Environment</p>
-                  <h3 className="text-xl font-bold mt-1 tracking-tight">{loading ? 'Locating...' : weather?.city || 'Weather Details'}</h3>
-                </div>
-                <div className="p-3 bg-emerald-500/10 rounded-2xl">
-                  <Cloud className="w-6 h-6 text-emerald-400" />
-                </div>
-              </div>
-
-              {loading ? (
-                <div className="animate-pulse space-y-4">
-                  <div className="h-12 bg-white/10 rounded-2xl w-2/3" />
-                  <div className="grid grid-cols-2 gap-4"><div className="h-20 bg-white/10 rounded-2xl" /><div className="h-20 bg-white/10 rounded-2xl" /></div>
-                </div>
-              ) : weather ? (
-                <div className="space-y-6">
-                  <div className="flex items-center gap-4">
-                    <div className="text-5xl font-black">{weather.temp}°</div>
-                    <div>
-                      <p className="text-lg font-medium capitalize">{weather.description}</p>
-                      <p className="text-white/40 text-sm">Humidity: {weather.humidity}%</p>
-                    </div>
+        {view === 'timeline' && selectedPlantId && plants.find(p => p.id === selectedPlantId) ? (
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="mt-8">
+            <PlantTimeline 
+              plant={plants.find(p => p.id === selectedPlantId)!} 
+              onBack={() => setView('dashboard')}
+              onAddEntry={handleAddTimelineEntry}
+            />
+          </motion.div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
+            {/* Column 1: Environment & Monitoring */}
+            <div className="space-y-6">
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-md shadow-xl">
+                <div className="flex justify-between items-start mb-6">
+                  <div>
+                    <p className="text-white/50 text-sm font-medium uppercase tracking-wider">Local Environment</p>
+                    <h3 className="text-xl font-bold mt-1 tracking-tight">{loading ? 'Locating...' : weather?.city || 'Weather Details'}</h3>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-white/10 rounded-2xl p-4 border border-white/5">
-                      <div className="flex items-center gap-2 text-white/50 text-xs font-bold uppercase mb-1"><Wind className="w-3 h-3" />AQI Status</div>
-                      <div className={`text-xl font-black ${getAqiColor(weather.aqiStatus)}`}>{weather.aqiStatus}</div>
-                    </div>
-                    <div className="bg-white/10 rounded-2xl p-4 border border-white/5">
-                      <div className="flex items-center gap-2 text-white/50 text-xs font-bold uppercase mb-1"><Sun className="w-3 h-3" />UV Index</div>
-                      <div className="text-xl font-black text-yellow-400">{weather.uvIndex.toFixed(1)}</div>
-                    </div>
-                  </div>
-                  <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <Activity className="w-4 h-4 text-emerald-400" />
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-200/60">AI Calibration</span>
-                      </div>
-                      <span className="text-sm font-black text-emerald-400">{envMatch}%</span>
-                    </div>
-                    <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                      <motion.div initial={{ width: 0 }} animate={{ width: `${envMatch}%` }} className="h-full bg-gradient-to-r from-emerald-500 to-green-300" />
-                    </div>
+                  <div className="p-3 bg-emerald-500/10 rounded-2xl">
+                    <Cloud className="w-6 h-6 text-emerald-400" />
                   </div>
                 </div>
-              ) : <div className="text-center py-10 text-white/30">Unable to load weather data.</div>}
-            </motion.div>
 
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="bg-white/5 border border-white/10 rounded-3xl p-4 backdrop-blur-md overflow-hidden relative shadow-2xl h-[380px]">
-              <div className="flex justify-between items-center mb-3 px-2"><h3 className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Micro-Climate Monitor</h3></div>
-              <div className="relative rounded-2xl overflow-hidden border border-white/5 h-[300px]">
-                {coords ? <PlantMap lat={coords.lat} lon={coords.lon} /> : <div className="h-full w-full bg-white/5 animate-pulse flex flex-col items-center justify-center gap-3"><div className="w-12 h-12 rounded-full border-2 border-emerald-500/20 border-t-emerald-500 animate-spin" /><p className="text-white/20 text-[10px] font-bold uppercase tracking-widest">Calibrating Geolocation...</p></div>}
-              </div>
-            </motion.div>
-          </div>
-
-          {/* Column 2: Routine & Alerts */}
-          <div className="space-y-6">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-md shadow-xl">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold flex items-center gap-2"><CheckCircle className="w-5 h-5 text-emerald-400" />Daily Routine</h3>
-                <span className="text-[10px] font-bold text-white/40 uppercase bg-white/5 px-2 py-1 rounded-md">{tasks.filter(t => t.status === 'completed').length}/{tasks.length} Done</span>
-              </div>
-              <div className="space-y-3">
-                {tasks.map((task) => (
-                  <motion.div key={task.id} whileHover={{ scale: 1.02, x: 5 }} className="p-3.5 bg-white/5 border border-white/5 rounded-2xl flex items-center justify-between group hover:bg-emerald-500/5 hover:border-emerald-500/20 transition-all cursor-pointer shadow-lg">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-xl border flex items-center justify-center ${task.status === 'completed' ? 'bg-emerald-500/20 border-emerald-500/30' : 'bg-white/5 border-white/10'}`}>
-                        {task.status === 'completed' ? <CheckCircle className="w-4 h-4 text-emerald-400" /> : <div className="w-4 h-4 rounded-full border-2 border-white/20" />}
-                      </div>
-                      <div className="space-y-0.5">
-                        <span className={`text-xs font-bold block ${task.status === 'completed' ? 'text-white/30 line-through' : 'text-white/90'}`}>{task.title}</span>
-                        <span className="text-[9px] text-white/20 uppercase tracking-widest font-bold">{task.type}</span>
+                {loading ? (
+                  <div className="animate-pulse space-y-4">
+                    <div className="h-12 bg-white/10 rounded-2xl w-2/3" />
+                    <div className="grid grid-cols-2 gap-4"><div className="h-20 bg-white/10 rounded-2xl" /><div className="h-20 bg-white/10 rounded-2xl" /></div>
+                  </div>
+                ) : weather ? (
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-4">
+                      <div className="text-5xl font-black">{weather.temp}°</div>
+                      <div>
+                        <p className="text-lg font-medium capitalize">{weather.description}</p>
+                        <p className="text-white/40 text-sm">Humidity: {weather.humidity}%</p>
                       </div>
                     </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </motion.div>
-                ))}
-                {tasks.length === 0 && <div className="text-center py-10 border-2 border-dashed border-white/5 rounded-2xl text-white/20 text-xs uppercase font-bold tracking-widest leading-loose">No items on today's <br /> botanical schedule</div>}
-              </div>
-            </motion.div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-white/10 rounded-2xl p-4 border border-white/5">
+                        <div className="flex items-center gap-2 text-white/50 text-xs font-bold uppercase mb-1"><Wind className="w-3 h-3" />AQI Status</div>
+                        <div className={`text-xl font-black ${getAqiColor(weather.aqiStatus)}`}>{weather.aqiStatus}</div>
+                      </div>
+                      <div className="bg-white/10 rounded-2xl p-4 border border-white/5">
+                        <div className="flex items-center gap-2 text-white/50 text-xs font-bold uppercase mb-1"><Sun className="w-3 h-3" />UV Index</div>
+                        <div className="text-xl font-black text-yellow-400">{weather.uvIndex.toFixed(1)}</div>
+                      </div>
+                    </div>
+                    <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <Activity className="w-4 h-4 text-emerald-400" />
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-200/60">AI Calibration</span>
+                        </div>
+                        <span className="text-sm font-black text-emerald-400">{envMatch}%</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                        <motion.div initial={{ width: 0 }} animate={{ width: `${envMatch}%` }} className="h-full bg-gradient-to-r from-emerald-500 to-green-300" />
+                      </div>
+                    </div>
+                  </div>
+                ) : <div className="text-center py-10 text-white/30">Unable to load weather data.</div>}
+              </motion.div>
 
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-md shadow-xl">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold flex items-center gap-2"><Bell className="w-5 h-5 text-orange-400" />Predictive Alerts</h3>
-                <button onClick={() => setShowCareModal(true)} className="p-2 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl transition-colors group"><Plus className="w-4 h-4 text-emerald-400 group-hover:rotate-90 transition-transform" /></button>
-              </div>
-              <div className="space-y-4">
-                {activeAlerts.length > 0 ? activeAlerts.map((alert, idx) => (
-                  <motion.div key={idx} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 * idx }} className={`p-4 bg-${alert.color}-500/10 border border-${alert.color}-500/20 rounded-2xl flex gap-4 backdrop-blur-sm`}>
-                    <div className="shrink-0 mt-1">{alert.icon}</div>
-                    <div><p className={`text-sm font-bold text-${alert.color}-200`}>{alert.title}</p><p className={`text-[11px] text-${alert.color}-100/60 leading-relaxed`}>{alert.desc}</p></div>
-                  </motion.div>
-                )) : <div className="text-center py-6 text-white/30 text-sm">No active threats detected.</div>}
-              </div>
-            </motion.div>
-          </div>
-
-          {/* Column 3: Actions & Collection */}
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 gap-4">
-              <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => onStartChat()} className="bg-gradient-to-r from-emerald-500 to-green-600 p-6 rounded-3xl shadow-xl shadow-emerald-500/10 flex items-center gap-4 border border-white/20 group">
-                <div className="p-4 bg-white/20 rounded-2xl group-hover:scale-110 transition-transform"><Camera className="w-6 h-6 text-white" /></div>
-                <div className="text-left"><p className="text-lg font-black uppercase tracking-tighter text-white">Scan Plant</p><p className="text-xs text-white/70">Instant Diagnosis</p></div>
-              </motion.button>
-              <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => onStartChat()} className="bg-white/5 border border-white/10 p-6 rounded-3xl flex items-center gap-4 hover:bg-white/10 transition-all group">
-                <div className="p-4 bg-emerald-500/10 rounded-2xl group-hover:scale-110 transition-transform"><Search className="w-6 h-6 text-emerald-400" /></div>
-                <div className="text-left"><p className="text-lg font-black uppercase tracking-tighter text-white">Ask Expert</p><p className="text-xs text-white/50">Care Advice</p></div>
-              </motion.button>
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="bg-white/5 border border-white/10 rounded-3xl p-4 backdrop-blur-md overflow-hidden relative shadow-2xl h-[380px]">
+                <div className="flex justify-between items-center mb-3 px-2"><h3 className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Micro-Climate Monitor</h3></div>
+                <div className="relative rounded-2xl overflow-hidden border border-white/5 h-[300px]">
+                  {coords ? <PlantMap lat={coords.lat} lon={coords.lon} /> : <div className="h-full w-full bg-white/5 animate-pulse flex flex-col items-center justify-center gap-3"><div className="w-12 h-12 rounded-full border-2 border-emerald-500/20 border-t-emerald-500 animate-spin" /><p className="text-white/20 text-[10px] font-bold uppercase tracking-widest">Calibrating Geolocation...</p></div>}
+                </div>
+              </motion.div>
             </div>
 
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-md shadow-xl">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-black uppercase tracking-tighter">My Collection</h3>
-                <button className="text-emerald-400 text-xs font-bold flex items-center gap-1 hover:underline">View All <ChevronRight className="w-4 h-4" /></button>
-              </div>
-              <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                {plants.length > 0 ? plants.map((plant, idx) => (
-                  <motion.div key={idx} whileHover={{ scale: 1.02, backgroundColor: 'rgba(255, 255, 255, 0.08)' }} onClick={() => onStartChat(plant)} className="bg-white/5 border border-white/10 rounded-2xl p-4 flex gap-4 items-center cursor-pointer transition-all duration-300">
-                    <div className="w-14 h-14 bg-emerald-900/30 rounded-xl flex items-center justify-center overflow-hidden border border-white/5 shrink-0">
-                      {plant.image ? <img src={plant.image} alt={plant.name} className="w-full h-full object-cover" /> : <Leaf className="w-8 h-8 text-emerald-700" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-center mb-1 gap-2">
-                        <p className="font-bold text-white uppercase text-[10px] tracking-wider truncate">{plant.name || 'Unnamed'}</p>
-                        <span className={`text-[10px] font-black shrink-0 ${plant.healthScore > 85 ? 'text-emerald-400' : 'text-orange-400'}`}>{plant.healthScore}%</span>
+            {/* Column 2: Routine & Alerts */}
+            <div className="space-y-6">
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-md shadow-xl">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-bold flex items-center gap-2"><CheckCircle className="w-5 h-5 text-emerald-400" />Daily Routine</h3>
+                  <span className="text-[10px] font-bold text-white/40 uppercase bg-white/5 px-2 py-1 rounded-md">{tasks.filter(t => t.status === 'completed').length}/{tasks.length} Done</span>
+                </div>
+                <div className="space-y-3">
+                  {tasks.map((task) => (
+                    <motion.div key={task.id} whileHover={{ scale: 1.02, x: 5 }} className="p-3.5 bg-white/5 border border-white/5 rounded-2xl flex items-center justify-between group hover:bg-emerald-500/5 hover:border-emerald-500/20 transition-all cursor-pointer shadow-lg">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-xl border flex items-center justify-center ${task.status === 'completed' ? 'bg-emerald-500/20 border-emerald-500/30' : 'bg-white/5 border-white/10'}`}>
+                          {task.status === 'completed' ? <CheckCircle className="w-4 h-4 text-emerald-400" /> : <div className="w-4 h-4 rounded-full border-2 border-white/20" />}
+                        </div>
+                        <div className="space-y-0.5">
+                          <span className={`text-xs font-bold block ${task.status === 'completed' ? 'text-white/30 line-through' : 'text-white/90'}`}>{task.title}</span>
+                          <span className="text-[9px] text-white/20 uppercase tracking-widest font-bold">{task.type}</span>
+                        </div>
                       </div>
-                      <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
-                        <motion.div initial={{ width: 0 }} animate={{ width: `${plant.healthScore}%` }} className={`h-full ${plant.healthScore > 85 ? 'bg-emerald-500' : 'bg-orange-500'}`} />
-                      </div>
-                    </div>
-                  </motion.div>
-                )) : <div className="text-center py-12 border-2 border-dashed border-white/10 rounded-2xl"><Leaf className="w-8 h-8 text-white/10 mx-auto mb-2" /><p className="text-white/20 text-[10px] font-bold uppercase tracking-widest">Empty Collection</p></div>}
-              </div>
-            </motion.div>
+                      <ChevronRight className="w-3.5 h-3.5 text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </motion.div>
+                  ))}
+                  {tasks.length === 0 && <div className="text-center py-10 border-2 border-dashed border-white/5 rounded-2xl text-white/20 text-xs uppercase font-bold tracking-widest leading-loose">No items on today's <br /> botanical schedule</div>}
+                </div>
+              </motion.div>
 
-            <div className="bg-gradient-to-br from-blue-900/20 via-emerald-900/10 to-transparent border border-blue-500/20 rounded-3xl p-5 flex items-start gap-4 shadow-2xl">
-              <div className="p-3 bg-blue-500/20 rounded-xl shrink-0"><ShieldCheck className="w-6 h-6 text-blue-400" /></div>
-              <div><h4 className="text-sm font-bold text-blue-200 mb-1">Context Protection</h4><p className="text-[10px] text-blue-100/60 leading-relaxed font-medium">Auto-monitoring local climate anomalies to protect your species.</p></div>
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-md shadow-xl">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-bold flex items-center gap-2"><Bell className="w-5 h-5 text-orange-400" />Predictive Alerts</h3>
+                  <button onClick={() => setShowCareModal(true)} className="p-2 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl transition-colors group"><Plus className="w-4 h-4 text-emerald-400 group-hover:rotate-90 transition-transform" /></button>
+                </div>
+                <div className="space-y-4">
+                  {activeAlerts.length > 0 ? activeAlerts.map((alert, idx) => (
+                    <motion.div key={idx} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 * idx }} className={`p-4 bg-${alert.color}-500/10 border border-${alert.color}-500/20 rounded-2xl flex gap-4 backdrop-blur-sm`}>
+                      <div className="shrink-0 mt-1">{alert.icon}</div>
+                      <div><p className={`text-sm font-bold text-${alert.color}-200`}>{alert.title}</p><p className={`text-[11px] text-${alert.color}-100/60 leading-relaxed`}>{alert.desc}</p></div>
+                    </motion.div>
+                  )) : <div className="text-center py-6 text-white/30 text-sm">No active threats detected.</div>}
+                </div>
+              </motion.div>
+            </div>
+
+            {/* Column 3: Actions & Collection */}
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 gap-4">
+                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => onStartChat()} className="bg-gradient-to-r from-emerald-500 to-green-600 p-6 rounded-3xl shadow-xl shadow-emerald-500/10 flex items-center gap-4 border border-white/20 group">
+                  <div className="p-4 bg-white/20 rounded-2xl group-hover:scale-110 transition-transform"><Camera className="w-6 h-6 text-white" /></div>
+                  <div className="text-left"><p className="text-lg font-black uppercase tracking-tighter text-white">Scan Plant</p><p className="text-xs text-white/70">Instant Diagnosis</p></div>
+                </motion.button>
+                <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => onStartChat()} className="bg-white/5 border border-white/10 p-6 rounded-3xl flex items-center gap-4 hover:bg-white/10 transition-all group">
+                  <div className="p-4 bg-emerald-500/10 rounded-2xl group-hover:scale-110 transition-transform"><Search className="w-6 h-6 text-emerald-400" /></div>
+                  <div className="text-left"><p className="text-lg font-black uppercase tracking-tighter text-white">Ask Expert</p><p className="text-xs text-white/50">Care Advice</p></div>
+                </motion.button>
+              </div>
+
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-md shadow-xl">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-xl font-black uppercase tracking-tighter">My Collection</h3>
+                  <button className="text-emerald-400 text-xs font-bold flex items-center gap-1 hover:underline">View All <ChevronRight className="w-4 h-4" /></button>
+                </div>
+                <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                  {plants.length > 0 ? plants.map((plant, idx) => (
+                    <motion.div key={idx} whileHover={{ scale: 1.02, backgroundColor: 'rgba(255, 255, 255, 0.08)' }} onClick={() => handlePlantClick(plant)} className="bg-white/5 border border-white/10 rounded-2xl p-4 flex gap-4 items-center cursor-pointer transition-all duration-300">
+                      <div className="w-14 h-14 bg-emerald-900/30 rounded-xl flex items-center justify-center overflow-hidden border border-white/5 shrink-0">
+                        {plant.image ? <img src={plant.image} alt={plant.name} className="w-full h-full object-cover" /> : <Leaf className="w-8 h-8 text-emerald-700" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-center mb-1 gap-2">
+                          <p className="font-bold text-white uppercase text-[10px] tracking-wider truncate">{plant.name || 'Unnamed'}</p>
+                          <span className={`text-[10px] font-black shrink-0 ${plant.healthScore > 85 ? 'text-emerald-400' : 'text-orange-400'}`}>{plant.healthScore}%</span>
+                        </div>
+                        <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                          <motion.div initial={{ width: 0 }} animate={{ width: `${plant.healthScore}%` }} className={`h-full ${plant.healthScore > 85 ? 'bg-emerald-500' : 'bg-orange-500'}`} />
+                        </div>
+                      </div>
+                    </motion.div>
+                  )) : <div className="text-center py-12 border-2 border-dashed border-white/10 rounded-2xl"><Leaf className="w-8 h-8 text-white/10 mx-auto mb-2" /><p className="text-white/20 text-[10px] font-bold uppercase tracking-widest">Empty Collection</p></div>}
+                </div>
+              </motion.div>
+
+              <div className="bg-gradient-to-br from-blue-900/20 via-emerald-900/10 to-transparent border border-blue-500/20 rounded-3xl p-5 flex items-start gap-4 shadow-2xl">
+                <div className="p-3 bg-blue-500/20 rounded-xl shrink-0"><ShieldCheck className="w-6 h-6 text-blue-400" /></div>
+                <div><h4 className="text-sm font-bold text-blue-200 mb-1">Context Protection</h4><p className="text-[10px] text-blue-100/60 leading-relaxed font-medium">Auto-monitoring local climate anomalies to protect your species.</p></div>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {showCareModal && (

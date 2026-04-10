@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
-import { Message } from '../types';
+import { Message, Plant, TimelineEntry } from '../types';
 import MessageBubble from './MessageBubble';
 import ChatInput from './ChatInput';
 import TypingIndicator from './TypingIndicator';
@@ -15,7 +15,7 @@ import type { ChatMessage } from '../services/apiService';
 
 interface ChatInterfaceProps {
   onBack: () => void;
-  initialPlant?: any;
+  initialPlant: Plant | null;
 }
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ onBack, initialPlant }) => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -256,20 +256,55 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onBack, initialPlant }) =
       
       // Auto-save plant data if image or specific keywords present
       if (imageUrl || botResponse.toLowerCase().includes('diagnosis') || botResponse.toLowerCase().includes('disease')) {
-        const currentPlants = JSON.parse(localStorage.getItem('learnerbot_plants') || '[]');
-        const newPlant = {
-          name: imageUrl ? 'Recent Scan' : 'Analyzed Plant',
-          diagnosis: botResponse.substring(0, 50) + '...',
-          image: imageUrl || null,
+        const currentPlants: Plant[] = JSON.parse(localStorage.getItem('learnerbot_plants') || '[]');
+        
+        // Find target plant (either initialPlant or matching name)
+        const targetPlantId = initialPlant?.id;
+        
+        const timelineEntry: TimelineEntry = {
+          id: Date.now().toString(),
           date: new Date().toISOString(),
-          healthScore: Math.floor(Math.random() * 30) + 65 // AI-calculated health score
+          image: imageUrl || (initialPlant?.image || ''),
+          status: botResponse.toLowerCase().includes('healthy') ? 'healthy' : 'diagnosis updated',
+          healthScore: Math.floor(Math.random() * 30) + 65,
+          note: botResponse.substring(0, 150) + '...'
         };
-        const updatedPlants = [newPlant, ...currentPlants].slice(0, 5);
+
+        let updatedPlants: Plant[];
+
+        if (targetPlantId) {
+          // Update existing plant timeline
+          updatedPlants = currentPlants.map(p => {
+            if (p.id === targetPlantId) {
+              return {
+                ...p,
+                healthScore: timelineEntry.healthScore,
+                diagnosis: botResponse.substring(0, 50) + '...',
+                image: imageUrl || p.image,
+                timeline: [timelineEntry, ...(p.timeline || [])]
+              };
+            }
+            return p;
+          });
+        } else {
+          // Create new plant entry
+          const newPlant: Plant = {
+            id: `plant-${Date.now()}`,
+            name: imageUrl ? 'New Scan' : 'Analyzed Plant',
+            diagnosis: botResponse.substring(0, 50) + '...',
+            image: imageUrl || null,
+            healthScore: timelineEntry.healthScore,
+            addedAt: new Date().toISOString(),
+            timeline: [timelineEntry]
+          };
+          updatedPlants = [newPlant, ...currentPlants].slice(0, 10);
+        }
+
         localStorage.setItem('learnerbot_plants', JSON.stringify(updatedPlants));
         
         // Push to Backend
         dataService.syncUserData(userName, updatedPlants, progressService.getProgress().xp).catch(e => console.error("Sync failed", e));
-        console.log("Plant data saved to collection and synced to MongoDB");
+        console.log("Plant timeline updated and synced to MongoDB");
       }
 
     } catch (error) {
