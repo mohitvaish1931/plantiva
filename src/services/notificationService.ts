@@ -7,12 +7,19 @@ class NotificationService {
   }
 
   private async checkPermission() {
-    if (!("Notification" in window)) {
-      console.warn("This browser does not support desktop notification");
+    if (typeof window === 'undefined' || !("Notification" in window)) {
+      console.warn("This browser does not support desktop notifications");
       return;
     }
 
     this.hasPermission = Notification.permission === "granted";
+    console.log(`[NotificationService] Current permission: ${Notification.permission}`);
+  }
+
+  getPermissionStatus(): NotificationPermission {
+    return typeof window !== 'undefined' && "Notification" in window 
+      ? Notification.permission 
+      : 'default';
   }
 
   async requestPermission(): Promise<boolean> {

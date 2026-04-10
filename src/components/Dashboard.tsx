@@ -335,9 +335,39 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
   };
 
   const activeAlerts = getDynamicAlerts();
+  const notificationPermission = notificationService.getPermissionStatus();
 
   return (
     <div className="min-h-screen bg-[#0a0f0d] text-white pb-20 custom-scrollbar overflow-x-hidden">
+      {/* Notification Setup Banner */}
+      {notificationPermission !== 'granted' && (
+        <motion.div 
+          initial={{ y: -50 }} 
+          animate={{ y: 0 }} 
+          className="bg-gradient-to-r from-emerald-600 to-green-700 p-3 text-center sticky top-0 z-[100] shadow-2xl flex items-center justify-center gap-4"
+        >
+          <p className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
+            <Bell className="w-4 h-4 animate-bounce" />
+            Enable botanical alerts to receive frost and heat warnings in real-time!
+          </p>
+          <button 
+            onClick={async () => {
+              const granted = await notificationService.requestPermission();
+              if (granted) {
+                notificationService.sendNotification("System Active! 🌿", {
+                  body: "You will now receive proactive plant care alerts."
+                });
+                // Force a re-render
+                setSelectedPlantId(prev => prev);
+              }
+            }}
+            className="px-4 py-1.5 bg-white text-emerald-700 rounded-full text-xs font-black uppercase tracking-tight hover:scale-105 transition-transform"
+          >
+            Enable Now
+          </button>
+        </motion.div>
+      )}
+
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-emerald-900/20 blur-[120px] rounded-full" />
         <div className="absolute bottom-[-5%] left-[-5%] w-[30%] h-[30%] bg-green-900/10 blur-[100px] rounded-full" />
@@ -507,8 +537,26 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
 
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-md shadow-xl">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-bold flex items-center gap-2"><Bell className="w-5 h-5 text-orange-400" />Predictive Alerts</h3>
-                  <button onClick={() => setShowCareModal(true)} className="p-2 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl transition-colors group"><Plus className="w-4 h-4 text-emerald-400 group-hover:rotate-90 transition-transform" /></button>
+                  <div className="flex items-center gap-2">
+                    <Bell className="w-5 h-5 text-orange-400" />
+                    <h3 className="text-lg font-bold">Predictive Alerts</h3>
+                  </div>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => {
+                        notificationService.sendNotification("System Check 🤖", {
+                          body: "Alert system is online. Monitoring your garden for hazards...",
+                          icon: "/logo.png"
+                        });
+                      }}
+                      className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-[10px] font-bold uppercase tracking-wider hover:bg-white/10 transition-colors"
+                    >
+                      Test System
+                    </button>
+                    <button onClick={() => setShowCareModal(true)} className="p-2 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl transition-colors group">
+                      <Plus className="w-4 h-4 text-emerald-400 group-hover:rotate-90 transition-transform" />
+                    </button>
+                  </div>
                 </div>
                 <div className="space-y-4">
                   {activeAlerts.length > 0 ? activeAlerts.map((alert, idx) => (
