@@ -10,12 +10,21 @@ require('dotenv').config({ path: parentEnvPath });
 require('dotenv').config({ path: envPath }); // Prefer current directory if exists
 
 const app = express();
-app.use(express.json());
+
+// 1. CORS - MUST BE FIRST
 app.use(cors({
-  origin: ['https://plantiva-main.vercel.app', 'http://localhost:5173', 'http://localhost:5174'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true
+  origin: [
+    'https://plantiva-main.vercel.app', 
+    'https://plantiva-main.vercel.app/',
+    'http://localhost:5173', 
+    'http://localhost:5174'
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true,
+  optionsSuccessStatus: 200 // Some legacy browsers (IE11, various SmartTVs) choke on 204
 }));
+
+app.use(express.json());
 
 // Debug Environment (Safe-ish)
 console.log('--- Environment Check ---');
