@@ -150,7 +150,7 @@ app.post('/api/chat', async (req, res) => {
         'HTTP-Referer': 'https://plantiva-main.vercel.app',
         'X-Title': 'Plantiva Server'
       },
-      body: JSON.stringify({ model: 'google/gemini-2.5-flash', messages }),
+      body: JSON.stringify({ model: 'google/gemini-2.0-flash-001', messages }),
     });
 
     if (!response.ok) {
