@@ -54,10 +54,11 @@ const User = mongoose.models.User || mongoose.model('User', userSchema);
 
 // API Endpoints
 app.get('/api/status', async (req, res) => {
+  // Manual trigger for Vercel Webhook hook.
   await connectDB();
   res.json({ 
     status: 'Online', 
-    service: 'Render Node JS Backend', 
+    service: 'Vercel Serverless Backend Version 9.0', 
     db: mongoose.connection.readyState 
   });
 });
