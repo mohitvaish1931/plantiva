@@ -109,7 +109,7 @@ app.post('/api/chat', async (req, res) => {
     const { message, conversationHistory = [], imageDataUrl, locationContext } = req.body;
     
     const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-    const model = process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-lite-preview-02-05:free';
+    const model = process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-001';
 
     if (!OPENROUTER_API_KEY) {
       console.error('SERVER_ERROR: OPENROUTER_API_KEY is missing.');
@@ -122,6 +122,11 @@ app.post('/api/chat', async (req, res) => {
       // Validate that it's a base64 string
       if (!imageDataUrl.startsWith('data:image')) {
          return res.status(200).json({ message: "🌿 **Format Error:** The image format sent to the server was invalid. Vercel backend received: " + imageDataUrl.substring(0, 50) });
+      }
+      
+      // HARD DIAGNOSTIC BYPASS
+      if (message === "DIAGNOSE_IMAGE_PAYLOAD" || message === "test image") {
+          return res.status(200).json({ message: `🌿 **Backend Success:** Image payload received! Size: ${imageDataUrl.length} characters. Model is set to ${model}. OpenRouter call bypassed.`});
       }
 
       finalContent = [
