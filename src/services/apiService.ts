@@ -14,9 +14,9 @@ class OpenRouterApiService {
   private model: string;
 
   constructor() {
-    // Attempt to load from env, but default to the raw key for maximum absolute reliability
-    this.apiKey = import.meta.env.VITE_OPENROUTER_API_KEY || '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';
-    this.model = import.meta.env.VITE_OPENROUTER_MODEL || 'google/gemini-2.0-flash-001';
+    // We explicitly hardcode these to prevent Vercel from injecting empty strings or old broken model names from the dashboard environment settings
+    this.apiKey = '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';
+    this.model = 'google/gemini-2.0-flash-001';
     console.log(`[ApiService] Initialized Client-Side Direct OpenRouter Connection.`);
   }
 
@@ -46,7 +46,7 @@ class OpenRouterApiService {
         headers: {
           'Authorization': `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': window.location.href,
+          'HTTP-Referer': 'https://plantiva-main.vercel.app',
           'X-Title': 'Plantiva Direct Client'
         },
         body: JSON.stringify({
