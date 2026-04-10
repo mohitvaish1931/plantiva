@@ -24,9 +24,44 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled = false }
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (!file.type.startsWith('image/')) {
+        alert('Please select a valid image file.');
+        return;
+      }
+
       const reader = new FileReader();
       reader.onload = (event) => {
-        setSelectedImage(event.target?.result as string);
+        const img = new Image();
+        img.onload = () => {
+          // Resize and compress
+          const MAX_SIZE = 800;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_SIZE) {
+              height *= MAX_SIZE / width;
+              width = MAX_SIZE;
+            }
+          } else {
+            if (height > MAX_SIZE) {
+              width *= MAX_SIZE / height;
+              height = MAX_SIZE;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            // Output highly compressed JPEG (70% quality)
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+            setSelectedImage(compressedBase64);
+          }
+        };
+        img.src = event.target?.result as string;
       };
       reader.readAsDataURL(file);
     }
