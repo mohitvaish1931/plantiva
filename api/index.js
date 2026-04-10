@@ -105,7 +105,7 @@ app.post('/api/user/update', async (req, res) => {
 
 app.post('/api/chat', async (req, res) => {
   try {
-    const { message, conversationHistory = [] } = req.body;
+    const { message, conversationHistory = [], imageDataUrl, locationContext } = req.body;
     
     const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
     const model = process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-001';
@@ -115,10 +115,21 @@ app.post('/api/chat', async (req, res) => {
       return res.status(200).json({ message: "🌿 **Configuration Error:** My API key is missing on the server. Please check Render environment variables." });
     }
 
+    let finalContent = message;
+    
+    if (imageDataUrl) {
+      finalContent = [
+        { type: "text", text: message || "Please analyze this plant image for diseases and provide treatment recommendations." },
+        { type: "image_url", image_url: { url: imageDataUrl } }
+      ];
+    } else if (!message || message.trim() === '') {
+      return res.status(200).json({ message: "🌿 I didn't catch that! Could you describe the issue or upload a photo?" });
+    }
+
     const messages = [
-      { role: 'system', content: 'You are Plantiva, a world-class AI botanical expert.' },
+      { role: 'system', content: 'You are Plantiva, a world-class AI botanical expert. If a user provides an image, analyze it explicitly for common plant diseases, watering issues, or pests, and provide actionable advice. Refer to the user location context if provided.' },
       ...conversationHistory,
-      { role: 'user', content: message }
+      { role: 'user', content: finalContent }
     ];
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
