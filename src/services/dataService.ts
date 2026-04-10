@@ -1,6 +1,6 @@
 
 const getApiBase = () => {
-  let baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
+  let baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://plantiva-vmgw.onrender.com/api';
   if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
   if (baseUrl.startsWith('http') && !baseUrl.endsWith('/api')) baseUrl += '/api';
   return baseUrl;
