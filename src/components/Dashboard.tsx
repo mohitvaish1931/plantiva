@@ -44,6 +44,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
   const [view, setView] = useState<'dashboard' | 'timeline'>('dashboard');
   const [selectedPlantId, setSelectedPlantId] = useState<string | null>(null);
   const notifiedOptimalRef = React.useRef(false);
+  const notifiedWarmRef = React.useRef(false);
 
   useEffect(() => {
     const savedName = localStorage.getItem('learnerbot_username') || 'Gardener';
@@ -176,7 +177,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
 
     // Feature 4: Proactive Weather Monitoring Notifications
     if (weather) {
-      if (weather.temp > 32) notificationService.notifyHeatStress(weather.temp);
+      if (weather.temp > 32) {
+        notificationService.notifyHeatStress(weather.temp);
+      } else if (weather.temp > 26 && !notifiedWarmRef.current) {
+        notificationService.notifySlightlyHot(weather.temp);
+        notifiedWarmRef.current = true;
+      }
+      
       if (weather.temp < 10) notificationService.notifyFrostWarning(weather.temp);
       if (weather.humidity < 40) notificationService.notifyLowHumidity(weather.humidity);
       if (weather.uvIndex > 5) notificationService.notifyHighUV(weather.uvIndex);

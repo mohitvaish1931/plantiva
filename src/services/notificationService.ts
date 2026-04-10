@@ -73,6 +73,13 @@ class NotificationService {
     } as any);
   }
 
+  notifySlightlyHot(temp: number) {
+    this.sendNotification("☀️ Slightly Warm Update", {
+      body: `The temperature is ${temp}°C. It's getting a bit warm—keep an eye on your soil moisture.`,
+      icon: "/logo.png"
+    });
+  }
+
   notifyWateringNeeded(plantName: string) {
     this.sendNotification("💧 Watering Schedule", {
       body: `Time to hydrate your ${plantName}. Maintain that growth streak!`,
