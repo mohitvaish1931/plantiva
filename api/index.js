@@ -3,13 +3,8 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 dotenv.config();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -155,4 +150,6 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-export default app;
+export default function handler(req, res) {
+  return app(req, res);
+}
