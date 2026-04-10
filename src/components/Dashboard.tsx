@@ -537,26 +537,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
 
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-md shadow-xl">
                 <div className="flex justify-between items-center mb-4">
-                  <div className="flex items-center gap-2">
-                    <Bell className="w-5 h-5 text-orange-400" />
-                    <h3 className="text-lg font-bold">Predictive Alerts</h3>
-                  </div>
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => {
-                        notificationService.sendNotification("System Check 🤖", {
-                          body: "Alert system is online. Monitoring your garden for hazards...",
-                          icon: "/logo.png"
-                        });
-                      }}
-                      className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-[10px] font-bold uppercase tracking-wider hover:bg-white/10 transition-colors"
-                    >
-                      Test System
-                    </button>
-                    <button onClick={() => setShowCareModal(true)} className="p-2 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl transition-colors group">
-                      <Plus className="w-4 h-4 text-emerald-400 group-hover:rotate-90 transition-transform" />
-                    </button>
-                  </div>
+                  <h3 className="text-lg font-bold flex items-center gap-2"><Bell className="w-5 h-5 text-orange-400" />Predictive Alerts</h3>
+                  <button onClick={() => setShowCareModal(true)} className="p-2 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl transition-colors group">
+                    <Plus className="w-4 h-4 text-emerald-400 group-hover:rotate-90 transition-transform" />
+                  </button>
                 </div>
                 <div className="space-y-4">
                   {activeAlerts.length > 0 ? activeAlerts.map((alert, idx) => (
