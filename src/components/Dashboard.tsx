@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { weatherService, WeatherData } from '../services/weatherService';
 import { progressService } from '../services/progressService';
+import { notificationService } from '../services/notificationService';
 import PlantMap from './PlantMap';
 import PlantTimeline from './PlantTimeline';
 import { Plant } from '../types';
@@ -173,6 +174,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
       }
     };
 
+    // Feature 4: Proactive Weather Monitoring Notifications
+    if (weather) {
+      if (weather.temp > 32) notificationService.notifyHeatStress(weather.temp);
+      if (weather.temp < 10) notificationService.notifyFrostWarning(weather.temp);
+    }
+
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -202,8 +209,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
       }
     }, 15 * 60 * 1000);
 
+    // Request Notification Permission
+    notificationService.requestPermission();
+
     return () => clearInterval(interval);
-  }, [coords?.lat, coords?.lon]); // Updated dependency to be more specific
+  }, [coords?.lat, coords?.lon]); 
 
 
   const getAqiColor = (status: string) => {
@@ -291,9 +301,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
       if (task.id === taskId) {
         const newStatus = task.status === 'completed' ? 'pending' : 'completed';
         
-        // Award XP only for new completions
+        // Award XP and show notification only for new completions
         if (newStatus === 'completed') {
           progressService.addXP(20);
+          notificationService.notifyTaskCompleted(task.title);
           console.log("Botanical XP Earned! +20 XP");
         }
         
