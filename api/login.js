@@ -9,13 +9,20 @@ const userSchema = new mongoose.Schema({
 const User = mongoose.models.User || mongoose.model('User', userSchema);
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).send('Method not allowed');
+  if (req.method !== 'POST') return res.status(405).send('POST only');
 
   const { name } = req.body;
   const mongoUri = process.env.MONGO_URI;
 
+  if (!mongoUri) {
+    console.error('SERVER_ERROR: MONGO_URI is missing in Vercel Settings.');
+    return res.status(200).json({ name, plants: [], xp: 0, error: 'Database key missing' });
+  }
+
   try {
-    if (mongoose.connection.readyState === 0) await mongoose.connect(mongoUri);
+    if (mongoose.connection.readyState === 0) {
+      await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 5000 });
+    }
     
     let user = await User.findOne({ name });
     if (!user) {
@@ -24,6 +31,8 @@ export default async function handler(req, res) {
     }
     res.status(200).json(user);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('MONO_DB_CRITICAL_ERROR:', err.message);
+    // Return a default object so the frontend doesn't crash
+    res.status(200).json({ name, plants: [], xp: 0, error: `DB Error: ${err.message}` });
   }
 }
