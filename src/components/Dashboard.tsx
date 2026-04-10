@@ -17,9 +17,11 @@ import {
   Sun,
   Calendar,
   CheckCircle,
-  Activity
+  Activity,
+  Check
 } from 'lucide-react';
 import { weatherService, WeatherData } from '../services/weatherService';
+import { progressService } from '../services/progressService';
 import PlantMap from './PlantMap';
 import PlantTimeline from './PlantTimeline';
 import { Plant } from '../types';
@@ -75,22 +77,29 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
     setPlants(plantsWithScores);
     localStorage.setItem('learnerbot_plants', JSON.stringify(plantsWithScores));
 
-    // Dynamic task generation based on plant history
-    if (plantsWithScores.length > 0) {
+    // Persistence: load tasks if they exist for today
+    const savedTasksJson = localStorage.getItem('learnerbot_daily_tasks');
+    const savedTasks = savedTasksJson ? JSON.parse(savedTasksJson) : null;
+    const lastTaskReset = localStorage.getItem('learnerbot_last_task_reset');
+    const today = new Date().toDateString();
+
+    // Check if we should use saved tasks or generate new ones (new day)
+    if (savedTasks && lastTaskReset === today) {
+      setTasks(savedTasks);
+    } else if (plantsWithScores.length > 0) {
       const generatedTasks = plantsWithScores.flatMap((plant: any, idx: number) => {
         const pTasks = [
           { 
-            id: `water-${idx}`, 
+            id: `water-${plant.id}`, 
             title: `Hydrate ${plant.name || 'Plant'}`, 
             type: 'Watering', 
-            status: plant.healthScore > 90 ? 'completed' : 'pending' 
+            status: 'pending' 
           }
         ];
         
-        // If plant has a diagnosis, add a treatment task
-        if (plant.diagnosis && !plant.diagnosis.includes('Healthy')) {
+        if (plant.diagnosis && !plant.diagnosis.toLowerCase().includes('healthy')) {
           pTasks.push({ 
-            id: `treat-${idx}`, 
+            id: `treat-${plant.id}`, 
             title: `Treat ${plant.name || 'Plant'}`, 
             type: 'Recovery', 
             status: 'pending' 
@@ -98,13 +107,19 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
         }
         
         return pTasks;
-      }).slice(0, 5); // Limit to top 5 tasks
+      }).slice(0, 5);
+      
       setTasks(generatedTasks);
+      localStorage.setItem('learnerbot_daily_tasks', JSON.stringify(generatedTasks));
+      localStorage.setItem('learnerbot_last_task_reset', today);
     } else {
-      setTasks([
-        { id: 1, title: 'Scan your first plant', type: 'Onboarding', status: 'pending' },
-        { id: 2, title: 'Check local humidity', type: 'Environment', status: 'completed' },
-      ]);
+      const defaultTasks = [
+        { id: 'onboarding-1', title: 'Scan your first plant', type: 'Onboarding', status: 'pending' },
+        { id: 'onboarding-2', title: 'Check local humidity', type: 'Environment', status: 'completed' },
+      ];
+      setTasks(defaultTasks);
+      localStorage.setItem('learnerbot_daily_tasks', JSON.stringify(defaultTasks));
+      localStorage.setItem('learnerbot_last_task_reset', today);
     }
 
     const fetchWeather = async (lat: number, lon: number) => {
@@ -271,6 +286,26 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
     return alerts;
   };
 
+  const handleToggleTask = (taskId: string) => {
+    const updatedTasks = tasks.map(task => {
+      if (task.id === taskId) {
+        const newStatus = task.status === 'completed' ? 'pending' : 'completed';
+        
+        // Award XP only for new completions
+        if (newStatus === 'completed') {
+          progressService.addXP(20);
+          console.log("Botanical XP Earned! +20 XP");
+        }
+        
+        return { ...task, status: newStatus };
+      }
+      return task;
+    });
+
+    setTasks(updatedTasks);
+    localStorage.setItem('learnerbot_daily_tasks', JSON.stringify(updatedTasks));
+  };
+
   const activeAlerts = getDynamicAlerts();
 
   return (
@@ -408,7 +443,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
                 </div>
                 <div className="space-y-3">
                   {tasks.map((task) => (
-                    <motion.div key={task.id} whileHover={{ scale: 1.02, x: 5 }} className="p-3.5 bg-white/5 border border-white/5 rounded-2xl flex items-center justify-between group hover:bg-emerald-500/5 hover:border-emerald-500/20 transition-all cursor-pointer shadow-lg">
+                    <motion.div 
+                      key={task.id} 
+                      whileHover={{ scale: 1.02, x: 5 }} 
+                      onClick={() => handleToggleTask(task.id)}
+                      className="p-3.5 bg-white/5 border border-white/5 rounded-2xl flex items-center justify-between group hover:bg-emerald-500/5 hover:border-emerald-500/20 transition-all cursor-pointer shadow-lg"
+                    >
                       <div className="flex items-center gap-3">
                         <div className={`p-2 rounded-xl border flex items-center justify-center ${task.status === 'completed' ? 'bg-emerald-500/20 border-emerald-500/30' : 'bg-white/5 border-white/10'}`}>
                           {task.status === 'completed' ? <CheckCircle className="w-4 h-4 text-emerald-400" /> : <div className="w-4 h-4 rounded-full border-2 border-white/20" />}
