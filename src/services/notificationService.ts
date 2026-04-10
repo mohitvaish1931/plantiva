@@ -80,6 +80,20 @@ class NotificationService {
     });
   }
 
+  notifyLowHumidity(humidity: number) {
+    this.sendNotification("💦 Low Humidity Alert", {
+      body: `Air is dry (${humidity}%). Consider misting leaves or using a humidifier to prevent leaf crisping.`,
+      icon: "/logo.png"
+    });
+  }
+
+  notifyHighUV(uvIndex: number) {
+    this.sendNotification("☀️ High UV Exposure", {
+      body: `UV Index is ${uvIndex.toFixed(1)}. Delicate plants may need partial shade to avoid leaf burn.`,
+      icon: "/logo.png"
+    });
+  }
+
   notifyTaskCompleted(taskTitle: string) {
     this.sendNotification("✅ Task Accomplished", {
       body: `Great job on: ${taskTitle}. +20 Botanical XP earned!`,

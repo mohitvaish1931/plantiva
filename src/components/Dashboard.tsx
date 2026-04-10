@@ -177,6 +177,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
     if (weather) {
       if (weather.temp > 32) notificationService.notifyHeatStress(weather.temp);
       if (weather.temp < 10) notificationService.notifyFrostWarning(weather.temp);
+      if (weather.humidity < 40) notificationService.notifyLowHumidity(weather.humidity);
+      if (weather.uvIndex > 5) notificationService.notifyHighUV(weather.uvIndex);
     }
 
     if (navigator.geolocation) {
