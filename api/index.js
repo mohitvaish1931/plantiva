@@ -137,7 +137,4 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 5005;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Plant Doctor Backend running on http://localhost:${PORT}`);
-});
+export default app;

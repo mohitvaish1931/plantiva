@@ -13,7 +13,7 @@ class OpenRouterApiService {
   private backendUrl: string;
 
   constructor() {
-    let baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://plantiva-vmgw.onrender.com/api';
+    let baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
     // Ensure the URL ends with /api but doesn't double it
     if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
     // If it's a relative path, just keep it as is, otherwise ensure it ends with /api
