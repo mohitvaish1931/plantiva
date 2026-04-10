@@ -18,6 +18,9 @@ const testImage = async () => {
       ];
       
     const messages = [
+        { role: 'system', content: 'You are Plantiva, a world-class AI botanical expert.' },
+        { role: 'user', content: 'What plant is this?' },
+        { role: 'assistant', content: 'Please provide me with a description or, even better, a picture of the plant!' },
         { role: 'user', content: finalContent }
     ];
 

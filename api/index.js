@@ -109,7 +109,7 @@ app.post('/api/chat', async (req, res) => {
     const { message, conversationHistory = [], imageDataUrl, locationContext } = req.body;
     
     const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-    const model = process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-001';
+    const model = process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-lite-preview-02-05:free';
 
     if (!OPENROUTER_API_KEY) {
       console.error('SERVER_ERROR: OPENROUTER_API_KEY is missing.');
@@ -119,12 +119,21 @@ app.post('/api/chat', async (req, res) => {
     let finalContent = message;
     
     if (imageDataUrl) {
+      // Validate that it's a base64 string
+      if (!imageDataUrl.startsWith('data:image')) {
+         return res.status(200).json({ message: "🌿 **Format Error:** The image format sent to the server was invalid. Vercel backend received: " + imageDataUrl.substring(0, 50) });
+      }
+
       finalContent = [
         { type: "text", text: message || "Please analyze this plant image for diseases and provide treatment recommendations." },
         { type: "image_url", image_url: { url: imageDataUrl } }
       ];
-    } else if (!message || message.trim() === '') {
-      return res.status(200).json({ message: "🌿 I didn't catch that! Could you describe the issue or upload a photo?" });
+    } else {
+      // Aggressive diagnostic: if the user DID send an image in the UI, but it dropped before backend:
+      // We can't know for sure, but if message is empty, we definitely know.
+      if (!message || message.trim() === '') {
+        return res.status(200).json({ message: "🌿 I didn't see an image or message catch that! Please try uploading the image again." });
+      }
     }
 
     const messages = [
@@ -141,7 +150,7 @@ app.post('/api/chat', async (req, res) => {
         'HTTP-Referer': 'https://plantiva-main.vercel.app',
         'X-Title': 'Plantiva Server'
       },
-      body: JSON.stringify({ model, messages }),
+      body: JSON.stringify({ model: 'google/gemini-2.5-flash', messages }),
     });
 
     if (!response.ok) {
