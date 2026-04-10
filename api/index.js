@@ -8,12 +8,25 @@ app.use(express.json());
 app.use(cors()); // CORS is fine now because it's the same domain
 
 // MongoDB Connection
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/plant_doctor';
-if (mongoose.connection.readyState === 0) {
-    mongoose.connect(MONGO_URI)
-        .then(() => console.log('✅ Connected to MongoDB (Vercel)'))
-        .catch(err => console.error('❌ MongoDB Connection Error:', err));
-}
+const MONGO_URI = process.env.MONGO_URI;
+
+const connectDB = async () => {
+  if (mongoose.connection.readyState >= 1) return;
+  
+  if (!MONGO_URI) {
+    throw new Error('MONGO_URI is missing in Vercel environment variables.');
+  }
+
+  try {
+    await mongoose.connect(MONGO_URI, {
+      serverSelectionTimeoutMS: 5000, 
+    });
+    console.log('✅ Connected to MongoDB');
+  } catch (err) {
+    console.error('❌ MongoDB Connection Error:', err.message);
+    throw err;
+  }
+};
 
 // User Model
 const userSchema = new mongoose.Schema({
@@ -32,13 +45,15 @@ const User = mongoose.models.User || mongoose.model('User', userSchema);
 
 // API Endpoints
 app.get('/api/status', (req, res) => {
-  res.json({ status: 'Online', service: 'Vercel Serverless' });
+  res.json({ status: 'Online', service: 'Vercel Serverless', db: mongoose.connection.readyState });
 });
 
 app.post('/api/login', async (req, res) => {
   const { name } = req.body;
   if (!name) return res.status(400).json({ error: 'Name is required' });
+  
   try {
+    await connectDB();
     let user = await User.findOne({ name });
     if (!user) {
       user = new User({ name });
