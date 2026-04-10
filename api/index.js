@@ -118,15 +118,14 @@ app.post('/api/chat', async (req, res) => {
 
     let finalContent = message;
     
+    // TEMPORARY DIAGNOSTIC CONSTANT
+    const hasImage = !!imageDataUrl;
+    const imageSize = hasImage ? imageDataUrl.length : 0;
+    
     if (imageDataUrl) {
       // Validate that it's a base64 string
       if (!imageDataUrl.startsWith('data:image')) {
-         return res.status(200).json({ message: "🌿 **Format Error:** The image format sent to the server was invalid. Vercel backend received: " + imageDataUrl.substring(0, 50) });
-      }
-      
-      // HARD DIAGNOSTIC BYPASS
-      if (message === "DIAGNOSE_IMAGE_PAYLOAD" || message === "test image") {
-          return res.status(200).json({ message: `🌿 **Backend Success:** Image payload received! Size: ${imageDataUrl.length} characters. Model is set to ${model}. OpenRouter call bypassed.`});
+         return res.status(200).json({ message: `🌿 **Format Error:** The image format sent to the server was invalid. Vercel backend received: ${imageDataUrl.substring(0, 50)}` });
       }
 
       finalContent = [
@@ -134,15 +133,13 @@ app.post('/api/chat', async (req, res) => {
         { type: "image_url", image_url: { url: imageDataUrl } }
       ];
     } else {
-      // Aggressive diagnostic: if the user DID send an image in the UI, but it dropped before backend:
-      // We can't know for sure, but if message is empty, we definitely know.
       if (!message || message.trim() === '') {
         return res.status(200).json({ message: "🌿 I didn't see an image or message catch that! Please try uploading the image again." });
       }
     }
 
     const messages = [
-      { role: 'system', content: 'You are Plantiva, a world-class AI botanical expert. If a user provides an image, analyze it explicitly for common plant diseases, watering issues, or pests, and provide actionable advice. Refer to the user location context if provided.' },
+      { role: 'system', content: 'You are Plantiva, a world-class AI botanical expert. If a user provides an image, analyze it explicitly for common plant diseases, watering issues, or pests, and provide actionable advice. Refer to the user location context if provided. Start your response by acknowledging the image if you see it.' },
       ...conversationHistory,
       { role: 'user', content: finalContent }
     ];
@@ -166,7 +163,10 @@ app.post('/api/chat', async (req, res) => {
     const data = await response.json();
     
     if (data && data.choices && data.choices[0] && data.choices[0].message) {
-      res.json({ message: data.choices[0].message.content });
+      const diagnosisPrefix = hasImage 
+          ? `[System: Successfully parsed ${imageSize / 1000} KB image payload] ` 
+          : `[System: No image payload was received from the UI] `;
+      res.json({ message: diagnosisPrefix + data.choices[0].message.content });
     } else {
       res.status(200).json({ message: "🌿 **Data Error:** Invalid response from the AI provider." });
     }
