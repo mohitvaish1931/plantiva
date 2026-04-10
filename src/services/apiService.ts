@@ -10,12 +10,16 @@ export interface ApiResponse {
 }
 
 class OpenRouterApiService {
-  private backendUrl: string = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5005/api';
+  private backendUrl: string;
 
   constructor() {
-    if (!this.backendUrl) {
-      console.warn('API base URL not configured. Using http://localhost:5005/api');
-    }
+    let baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5005/api';
+    // Ensure the URL ends with /api but doesn't double it
+    if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
+    if (!baseUrl.endsWith('/api')) baseUrl += '/api';
+    
+    this.backendUrl = baseUrl;
+    console.log(`[ApiService] Initialized with backend: ${this.backendUrl}`);
   }
 
   async sendMessage(

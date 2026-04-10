@@ -1,5 +1,12 @@
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5005/api';
+const getApiBase = () => {
+  let baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5005/api';
+  if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
+  if (!baseUrl.endsWith('/api')) baseUrl += '/api';
+  return baseUrl;
+};
+
+const API_BASE = getApiBase();
 
 export interface UserData {
   name: string;
