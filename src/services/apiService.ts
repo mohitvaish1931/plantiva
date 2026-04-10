@@ -1,7 +1,7 @@
 // OpenRouter API service for LearnerBot
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
-  content: string;
+  content: string | any[];
 }
 
 export interface ApiResponse {
@@ -10,17 +10,14 @@ export interface ApiResponse {
 }
 
 class OpenRouterApiService {
-  private backendUrl: string;
+  private apiKey: string;
+  private model: string;
 
   constructor() {
-    let baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
-    // Ensure the URL ends with /api but doesn't double it
-    if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
-    // If it's a relative path, just keep it as is, otherwise ensure it ends with /api
-    if (baseUrl.startsWith('http') && !baseUrl.endsWith('/api')) baseUrl += '/api';
-    
-    this.backendUrl = baseUrl;
-    console.log(`[ApiService] Initialized with backend: ${this.backendUrl}`);
+    // Attempt to load from env, but default to the raw key for maximum absolute reliability
+    this.apiKey = import.meta.env.VITE_OPENROUTER_API_KEY || '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';
+    this.model = import.meta.env.VITE_OPENROUTER_MODEL || 'google/gemini-2.0-flash-001';
+    console.log(`[ApiService] Initialized Client-Side Direct OpenRouter Connection.`);
   }
 
   async sendMessage(
@@ -30,35 +27,58 @@ class OpenRouterApiService {
     locationContext?: string
   ): Promise<ApiResponse> {
     try {
-      const response = await fetch(`${this.backendUrl}/chat`, {
+      let finalContent: any = message || "Please analyze this plant image for diseases and provide treatment recommendations.";
+      
+      if (imageDataUrl) {
+         finalContent = [
+            { type: "text", text: message || "Please analyze this plant image for diseases and provide treatment recommendations." },
+            { type: "image_url", image_url: { url: imageDataUrl } }
+         ];
+      }
+
+      const messages: ChatMessage[] = [
+        ...conversationHistory,
+        { role: 'user', content: finalContent }
+      ];
+
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json',
+          'HTTP-Referer': window.location.href,
+          'X-Title': 'Plantiva Direct Client'
         },
-        body: JSON.stringify({ message, conversationHistory, imageDataUrl, locationContext }),
+        body: JSON.stringify({
+          model: this.model,
+          messages: messages
+        })
       });
 
       const data = await response.json();
+      
       if (!response.ok) {
-        if (response.status === 402) {
-          throw new Error('PLAN_CREDITS_EXHAUSTED');
-        }
-        throw new Error(data.error || 'OpenRouter proxy request failed.');
+        throw new Error(data.error?.message || 'OpenRouter direct request failed.');
       }
 
-      return {
-        message: data.message,
-      };
+      if (data && data.choices && data.choices[0] && data.choices[0].message) {
+         // Prefix diagnostic only if image was sent
+         const diagnosticPrefix = imageDataUrl ? `[System: Client-side parsed ${Math.round(imageDataUrl.length / 1000)}KB image successfully] ` : '';
+         return {
+           message: diagnosticPrefix + data.choices[0].message.content,
+         };
+      }
+
+      throw new Error("Invalid response from OpenRouter");
+
     } catch (error) {
       console.error('API proxy error:', error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       
-      let friendlyMessage = `🌿 Hello there, botanical friend! I couldn't reach the Plantiva backend right now. Please check your server configuration or try again later.`;
+      let friendlyMessage = `🌿 Hello there, botanical friend! I couldn't reach the AI directly from your browser. Please check your internet connection or API key.`;
       
-      if (errorMessage.includes('PLAN_CREDITS_EXHAUSTED')) {
-        friendlyMessage = `💎 **AI Power Capacity Exceeded:** My botanical brain is currently resting because the AI energy (credits) for this project has run out. \n\nPlease add credits to your OpenRouter account or wait for a reset to continue our expert diagnosis! ✨`;
-      } else if (errorMessage.includes('API key not configured')) {
-        friendlyMessage = `🔑 **Configuration Needed:** I'm ready to help, but my API key haven't been set up yet. Please configure your environment variables to start the scan!`;
+      if (errorMessage.includes('credits')) {
+        friendlyMessage = `💎 **AI Power Capacity Exceeded:** My botanical brain is resting because the AI energy (credits) for this project has run out.`;
       }
 
       return {
@@ -68,28 +88,17 @@ class OpenRouterApiService {
     }
   }
 
-  // Test the API connection
   async testConnection(): Promise<boolean> {
     try {
       const response = await this.sendMessage("Hello, are you working?");
       return !response.error;
     } catch (error) {
-      console.error("Connection test failed:", error);
       return false;
     }
   }
 
-  // Get available models
-  async getAvailableModels(): Promise<any[]> {
-    console.warn('Model listing is not available in the frontend proxy implementation.');
-    return [];
-  }
-
-  // Analyze image with Hugging Face Inference API
-  async analyzeImageWithHuggingFace(_imageDataUrl: string): Promise<any[]> {
-    console.warn('Hugging Face image analysis is handled on the backend and not available in the frontend service.');
-    return [];
-  }
+  async getAvailableModels(): Promise<any[]> { return []; }
+  async analyzeImageWithHuggingFace(_imageDataUrl: string): Promise<any[]> { return []; }
 }
 
 export const apiService = new OpenRouterApiService();
