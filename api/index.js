@@ -67,12 +67,13 @@ app.post('/api/chat', async (req, res) => {
     const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
     const model = process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-001';
 
-    if (!OPENROUTER_API_KEY) return res.status(500).json({ error: 'API key missing' });
-
-    const systemPrompt = `You are Plantiva, a world-class AI botanical expert...`; // Shortened for brevity in log
+    if (!OPENROUTER_API_KEY) {
+      console.error('Missing OPENROUTER_API_KEY');
+      return res.status(500).json({ error: 'Backend Configuration Error: OPENROUTER_API_KEY is missing on Vercel.' });
+    }
 
     const messages = [
-      { role: 'system', content: systemPrompt },
+      { role: 'system', content: "You are Plantiva, a world-class AI botanical expert." },
       ...conversationHistory,
       { role: 'user', content: message }
     ];
@@ -82,14 +83,26 @@ app.post('/api/chat', async (req, res) => {
       headers: {
         'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
         'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://plantiva-main.vercel.app',
+        'X-Title': 'Plantiva AI',
       },
       body: JSON.stringify({ model, messages }),
     });
 
+    if (!response.ok) {
+        const errorData = await response.json();
+        return res.status(response.status).json({ error: errorData.error?.message || 'OpenRouter API error' });
+    }
+
     const data = await response.json();
+    if (!data.choices || !data.choices[0]) {
+        return res.status(500).json({ error: 'Invalid response from AI provider' });
+    }
+    
     res.json({ message: data.choices[0].message.content });
   } catch (err) {
-    res.status(500).json({ error: 'Server error' });
+    console.error('Vercel Chat Error:', err);
+    res.status(500).json({ error: `Server Error: ${err.message}` });
   }
 });
 
