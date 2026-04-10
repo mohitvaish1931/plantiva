@@ -159,7 +159,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onBack, initialPlant }) =
         locationContext = `The user is in ${weather.city}. Current weather: ${weather.temp}°C, ${weather.description}. Humidity: ${weather.humidity}%. Air Quality: ${weather.aqiStatus} (Index ${weather.aqi}). Use this to provide contextually relevant advice (e.g. humidity effects on fungi, temperature impact on growth).`;
       }
 
-      const response = await apiService.sendMessage(message, conversationHistory, imageUrl, locationContext);
+      const systemMessage: ChatMessage = {
+        role: 'system',
+        content: "You are Plantiva, the world's most advanced AI botanical expert. Your mission is to help users identify plant diseases, provide care tips, and ensure their garden thrives. You MUST never refer to yourself as ChatGPT, OpenAI, or a generic AI model. If asked about your identity or if you are ChatGPT, you must respond exactly with: 'No, I am not ChatGPT. I am Plantiva, here to help you grow your plants healthy! 🌿'"
+      };
+
+      const response = await apiService.sendMessage(message, [systemMessage, ...conversationHistory], imageUrl, locationContext);
 
 
       // Log but don't break UX for missing API key
