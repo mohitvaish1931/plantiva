@@ -4,35 +4,67 @@ import { User, Bot } from 'lucide-react';
 interface AvatarProps {
   type: 'user' | 'bot';
   size?: 'sm' | 'md' | 'lg';
-  emoji?: string;
 }
 
-const Avatar: React.FC<AvatarProps> = ({ type, size = 'md', emoji }) => {
+const Avatar: React.FC<AvatarProps> = ({ type, size = 'md' }) => {
   const sizeClasses = {
-    sm: 'w-8 h-8',
-    md: 'w-12 h-12',
-    lg: 'w-16 h-16'
+    sm: 'w-14 h-14',
+    md: 'w-20 h-20',
+    lg: 'w-28 h-28'
   };
 
   const iconSizes = {
-    sm: 'w-4 h-4',
-    md: 'w-6 h-6',
-    lg: 'w-8 h-8'
+    sm: 'w-5 h-5',
+    md: 'w-7 h-7',
+    lg: 'w-10 h-10'
   };
 
-  const gradientClasses = type === 'user' 
-    ? 'bg-gradient-to-br from-blue-500 via-emerald-500 to-green-500'
-    : 'bg-gradient-to-br from-green-500 via-emerald-500 to-lime-400';
+  const gradient =
+    type === 'user'
+      ? 'from-emerald-400 via-green-500 to-lime-400'
+      : 'from-green-300 via-emerald-600 to-teal-400';
 
   return (
-    <div className={`${sizeClasses[size]} ${gradientClasses} rounded-full flex items-center justify-center shadow-lg flex-shrink-0`}>
-      {emoji ? (
-        <span className="text-white text-lg">{emoji}</span>
-      ) : type === 'user' ? (
-        <User className={`${iconSizes[size]} text-white`} />
-      ) : (
-        <Bot className={`${iconSizes[size]} text-white`} />
-      )}
+    <div className={`${sizeClasses[size]} relative group`}>
+      
+      {/* 🧬 Organic morph layer */}
+      <div className="absolute inset-0 animate-morph">
+        <div
+          className={`w-full h-full bg-gradient-to-br ${gradient} opacity-80 blur-xl`}
+          style={{
+            borderRadius: '60% 40% 30% 70% / 60% 30% 70% 40%'
+          }}
+        />
+      </div>
+
+      {/* 🌿 Secondary soft layer */}
+      <div className="absolute inset-0 animate-morph2">
+        <div
+          className="w-full h-full bg-green-400/40 blur-2xl"
+          style={{
+            borderRadius: '30% 70% 70% 30% / 30% 30% 70% 70%'
+          }}
+        />
+      </div>
+
+      {/* 🌱 Core (clean + glassy) */}
+      <div className="relative w-full h-full flex items-center justify-center">
+        <div className="w-[70%] h-[70%] rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center shadow-lg">
+          
+          <div className="text-white">
+            {type === 'user' ? (
+              <User className={iconSizes[size]} />
+            ) : (
+              <Bot className={iconSizes[size]} />
+            )}
+          </div>
+
+        </div>
+      </div>
+
+      {/* ✨ Hover life effect */}
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition duration-500 bg-green-400/20 blur-2xl rounded-full" />
+
     </div>
   );
 };
