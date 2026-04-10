@@ -21,14 +21,25 @@ app.use(cors({
 
 app.use(express.json());
 
-// MongoDB Connection
 const MONGO_URI = process.env.MONGO_URI;
 
-mongoose.connect(MONGO_URI, {
-    serverSelectionTimeoutMS: 5000, 
-})
-.then(() => console.log('✅ Connected to MongoDB on Render'))
-.catch(err => console.error('❌ MongoDB Connection Error:', err));
+const connectDB = async () => {
+  if (mongoose.connection.readyState === 0) {
+    if (!MONGO_URI) {
+      console.error('SERVER_ERROR: MONGO_URI is missing in Environment Variables.');
+      return false;
+    }
+    try {
+      await mongoose.connect(MONGO_URI, { serverSelectionTimeoutMS: 5000 });
+      console.log('✅ Connected to MongoDB on Vercel Serverless');
+      return true;
+    } catch (err) {
+      console.error('❌ MongoDB Connection Error:', err);
+      return false;
+    }
+  }
+  return true;
+};
 
 // User Model
 const userSchema = new mongoose.Schema({
@@ -46,7 +57,8 @@ const userSchema = new mongoose.Schema({
 const User = mongoose.models.User || mongoose.model('User', userSchema);
 
 // API Endpoints
-app.get('/api/status', (req, res) => {
+app.get('/api/status', async (req, res) => {
+  await connectDB();
   res.json({ 
     status: 'Online', 
     service: 'Render Node JS Backend', 
@@ -59,6 +71,9 @@ app.post('/api/login', async (req, res) => {
   if (!name) return res.status(400).json({ error: 'Name is required' });
 
   try {
+    const isConnected = await connectDB();
+    if (!isConnected) return res.status(500).json({ error: 'Database connection failed' });
+
     let user = await User.findOne({ name });
     if (!user) {
       user = new User({ name });
@@ -78,6 +93,9 @@ app.post('/api/user/update', async (req, res) => {
   if (!name) return res.status(400).json({ error: 'Name is required' });
 
   try {
+    const isConnected = await connectDB();
+    if (!isConnected) return res.status(500).json({ error: 'Database connection failed' });
+
     const user = await User.findOneAndUpdate(
       { name },
       { $set: { plants, xp } },
