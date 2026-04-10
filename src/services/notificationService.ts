@@ -63,14 +63,14 @@ class NotificationService {
     this.sendNotification("❄️ Frost Warning!", {
       body: `Temperature dropped to ${temp}°C. Protect your sensitive plants!`,
       vibrate: [200, 100, 200]
-    });
+    } as any);
   }
 
   notifyHeatStress(temp: number) {
     this.sendNotification("🔥 Heat Stress Alert!", {
       body: `It's ${temp}°C outside. Outdoor plants need extra hydration now.`,
       vibrate: [200, 100, 200]
-    });
+    } as any);
   }
 
   notifyWateringNeeded(plantName: string) {

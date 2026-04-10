@@ -17,8 +17,7 @@ import {
   Sun,
   Calendar,
   CheckCircle,
-  Activity,
-  Check
+  Activity
 } from 'lucide-react';
 import { weatherService, WeatherData } from '../services/weatherService';
 import { progressService } from '../services/progressService';
@@ -88,7 +87,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
     if (savedTasks && lastTaskReset === today) {
       setTasks(savedTasks);
     } else if (plantsWithScores.length > 0) {
-      const generatedTasks = plantsWithScores.flatMap((plant: any, idx: number) => {
+      const generatedTasks = plantsWithScores.flatMap((plant: any, _idx: number) => {
         const pTasks = [
           { 
             id: `water-${plant.id}`, 
