@@ -353,8 +353,20 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
           </div>
           <div className="flex items-center gap-4">
             <button onClick={onLogout} className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white/40 hover:text-white transition-colors border border-white/10 rounded-lg">Logout</button>
-            <button className="p-2 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-colors relative">
-              <Bell className="w-5 h-5 text-emerald-400" />
+            <button 
+              onClick={async () => {
+                const granted = await notificationService.requestPermission();
+                if (granted) {
+                  notificationService.sendNotification("Notifications Enabled! 🌿", {
+                    body: "You're all set! Plantiva will now keep you updated on your garden's health."
+                  });
+                } else {
+                  alert("Please enable notifications in your browser settings to receive botanical alerts.");
+                }
+              }}
+              className="p-2 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-colors relative group"
+            >
+              <Bell className="w-5 h-5 text-emerald-400 group-hover:rotate-12 transition-transform" />
               <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-[#0a0f0d]" />
             </button>
             <div className="flex items-center gap-3 pl-2 border-l border-white/10">
