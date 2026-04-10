@@ -11,25 +11,12 @@ export interface ApiResponse {
 
 class OpenRouterApiService {
   private backendUrl: string = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5005/api';
-  private siteUrl: string = import.meta.env.VITE_SITE_URL || 'https://plantiva-beta.vercel.app';
-  private siteName: string = import.meta.env.VITE_SITE_NAME || 'Plantiva AI Assistant';
-  private model: string = import.meta.env.VITE_OPENROUTER_MODEL || 'google/gemini-2.0-flash-001';
-  private hfModel: string = import.meta.env.VITE_HUGGING_FACE_MODEL || 'nateraw/vit-plant-classifier';
-
-
 
   constructor() {
     if (!this.backendUrl) {
       console.warn('API base URL not configured. Using http://localhost:5005/api');
     }
-
-
-
   }
-
-
-
-
 
   async sendMessage(
     message: string,
@@ -76,27 +63,6 @@ class OpenRouterApiService {
     }
   }
 
-  // Expert Simulation for botanical diagnosis when API is unavailable
-  private generateMockBotanicalResponse(message: string): string {
-    const input = message.toLowerCase();
-    
-    // Check for common symptoms
-    if (input.includes('yellow') || input.includes('spots')) {
-      return `🌿 **Expert Diagnosis from Plantiva:** \n\nBased on your description of **yellowing spots**, it's highly likely your plant is experiencing **Leaf Spot Disease** (often fungal or bacterial). \n\n**🔍 Identification:** \nSmall, dark circle or irregular shapes with a yellow halo. \n\n**📋 Immediate Actions:** \n1. **Isolate** the plant to prevent spreading. \n2. **Prune** the most affected leaves cautiously. \n3. **Improve Airflow:** Ensure your plant isn't too crowded. \n\n**🛡️ Organic Cure:** \nApply a homemade solution of 1 teaspoon of baking soda in 1 quart of water with a drop of liquid soap. Mist the leaves every 7-10 days. \n\nI'm still learning your specific plant's history! Upload more photos for a deeper scan! 🌱✨`;
-    }
-
-    if (input.includes('wilt') || input.includes('droop')) {
-      return `🍂 **Expert Diagnosis from Plantiva:** \n\nIt sounds like your plant is **wilting**, which usually indicates a water movement issue—either **Under-watering** or severe **Root Rot**. \n\n**🔍 Tips:** \nCheck the soil moisture level 2 inches deep. If it's bone-dry, water thoroughly. If it's soaking wet, you might have root rot. \n\n**📋 Immediate Actions:** \n- Adjust your watering schedule based on soil moisture, not just calendar days. \n- Ensure the pot has drainage holes. \n\nI'm analyzing your plant's environment. Let me know if you see any discolored roots! 🌱`;
-    }
-
-    if (input.includes('pest') || input.includes('bugs') || input.includes('white')) {
-      return `🪲 **Expert Diagnosis from Plantiva:** \n\nYou might be dealing with **Mealybugs** or **Powdery Mildew**. \n\n**🔍 Observation:** \nIf you see white, cottony clusters, it's mealybugs. If it looks like flour dusted on leaves, it's mildew. \n\n**📋 Treatment:** \n- For bugs: Use a cotton swab dipped in rubbing alcohol to remove them. \n- For mildew: Use a neem oil spray or horticultural soap. \n\nKeep your plant in a well-ventilated area! 🌿`;
-    }
-
-    // Default expert welcome
-    return `🌿 **Welcome back to Plantiva!** \n\nI'm currently recalibrating my botanical brain to give you the most accurate results for that specific inquiry. \n\n**Here's what it looks like from my initial scan:** \nYour plant seems to be under some environmental stress. While I fetch the exact cure method from my vault, please ensure it's receiving **filtered light** and **well-draining soil**. \n\nWhat other symptoms are you noticing (spots, wilting, or odd bugs)? I'm ready to help! 🚀✨`;
-  }
-
   // Test the API connection
   async testConnection(): Promise<boolean> {
     try {
@@ -115,7 +81,7 @@ class OpenRouterApiService {
   }
 
   // Analyze image with Hugging Face Inference API
-  async analyzeImageWithHuggingFace(imageDataUrl: string): Promise<any[]> {
+  async analyzeImageWithHuggingFace(_imageDataUrl: string): Promise<any[]> {
     console.warn('Hugging Face image analysis is handled on the backend and not available in the frontend service.');
     return [];
   }
