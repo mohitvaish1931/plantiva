@@ -290,9 +290,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
           <div className="absolute top-[-20%] right-[-10%] w-[300px] h-[300px] bg-emerald-500/10 blur-[60px] rounded-full pointer-events-none" />
         </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-1 space-y-6">
-            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }} className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-md">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
+          {/* Column 1: Environment & Monitoring */}
+          <div className="space-y-6">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-md shadow-xl">
               <div className="flex justify-between items-start mb-6">
                 <div>
                   <p className="text-white/50 text-sm font-medium uppercase tracking-wider">Local Environment</p>
@@ -317,88 +318,69 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
                       <p className="text-white/40 text-sm">Humidity: {weather.humidity}%</p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <div className="bg-white/10 rounded-2xl p-4 border border-white/5">
                       <div className="flex items-center gap-2 text-white/50 text-xs font-bold uppercase mb-1"><Wind className="w-3 h-3" />AQI Status</div>
                       <div className={`text-xl font-black ${getAqiColor(weather.aqiStatus)}`}>{weather.aqiStatus}</div>
-                      <p className="text-[10px] text-white/30 mt-1">Level {weather.aqi} Index</p>
                     </div>
                     <div className="bg-white/10 rounded-2xl p-4 border border-white/5">
                       <div className="flex items-center gap-2 text-white/50 text-xs font-bold uppercase mb-1"><Sun className="w-3 h-3" />UV Index</div>
                       <div className="text-xl font-black text-yellow-400">{weather.uvIndex.toFixed(1)}</div>
-                      <p className="text-[10px] text-white/30 mt-1">Solar Intensity</p>
-                    </div>
-                    <div className="bg-white/10 rounded-2xl p-4 border border-white/5">
-                      <div className="flex items-center gap-2 text-white/50 text-xs font-bold uppercase mb-1"><Zap className="w-3 h-3" />Sun Impact</div>
-                      <div className="text-xl font-black text-emerald-400">{weather.sunImpact}</div>
-                      <p className="text-[10px] text-white/30 mt-1">Risk Level</p>
-                    </div>
-                    <div className="bg-white/10 rounded-2xl p-4 border border-white/5">
-                      <div className="flex items-center gap-2 text-white/50 text-xs font-bold uppercase mb-1"><Droplets className="w-3 h-3" />Humidity</div>
-                      <div className="text-xl font-black text-sky-400">{weather.humidity}%</div>
-                      <p className="text-[10px] text-white/30 mt-1">Air Moisture</p>
                     </div>
                   </div>
                   <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <Activity className="w-4 h-4 text-emerald-400" />
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-200/60">Auto-Calibration Match</span>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-200/60">AI Calibration</span>
                       </div>
                       <span className="text-sm font-black text-emerald-400">{envMatch}%</span>
                     </div>
                     <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                      <motion.div 
-                        initial={{ width: 0 }} 
-                        animate={{ width: `${envMatch}%` }} 
-                        className="h-full bg-gradient-to-r from-emerald-500 to-green-300 shadow-[0_0_10px_rgba(16,185,129,0.5)]" 
-                      />
+                      <motion.div initial={{ width: 0 }} animate={{ width: `${envMatch}%` }} className="h-full bg-gradient-to-r from-emerald-500 to-green-300" />
                     </div>
-                    <p className="text-[9px] text-emerald-200/40 mt-2 leading-tight">Your micro-climate is {envMatch > 85 ? 'ideal' : 'partially compatible'} for your current tropical species collection.</p>
                   </div>
                 </div>
               ) : <div className="text-center py-10 text-white/30">Unable to load weather data.</div>}
             </motion.div>
 
-            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.18 }} className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-md">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="bg-white/5 border border-white/10 rounded-3xl p-4 backdrop-blur-md overflow-hidden relative shadow-2xl h-[380px]">
+              <div className="flex justify-between items-center mb-3 px-2"><h3 className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Micro-Climate Monitor</h3></div>
+              <div className="relative rounded-2xl overflow-hidden border border-white/5 h-[300px]">
+                {coords ? <PlantMap lat={coords.lat} lon={coords.lon} /> : <div className="h-full w-full bg-white/5 animate-pulse flex flex-col items-center justify-center gap-3"><div className="w-12 h-12 rounded-full border-2 border-emerald-500/20 border-t-emerald-500 animate-spin" /><p className="text-white/20 text-[10px] font-bold uppercase tracking-widest">Calibrating Geolocation...</p></div>}
+              </div>
+            </motion.div>
+          </div>
+
+          {/* Column 2: Routine & Alerts */}
+          <div className="space-y-6">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-md shadow-xl">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-bold flex items-center gap-2"><CheckCircle className="w-5 h-5 text-emerald-400" />Daily Routine</h3>
                 <span className="text-[10px] font-bold text-white/40 uppercase bg-white/5 px-2 py-1 rounded-md">{tasks.filter(t => t.status === 'completed').length}/{tasks.length} Done</span>
               </div>
               <div className="space-y-3">
                 {tasks.map((task) => (
-                  <motion.div 
-                    key={task.id} 
-                    whileHover={{ scale: 1.02, x: 5 }}
-                    className="p-3.5 bg-white/5 border border-white/5 rounded-2xl flex items-center justify-between group hover:bg-emerald-500/5 hover:border-emerald-500/20 transition-all cursor-pointer shadow-lg"
-                  >
+                  <motion.div key={task.id} whileHover={{ scale: 1.02, x: 5 }} className="p-3.5 bg-white/5 border border-white/5 rounded-2xl flex items-center justify-between group hover:bg-emerald-500/5 hover:border-emerald-500/20 transition-all cursor-pointer shadow-lg">
                     <div className="flex items-center gap-3">
                       <div className={`p-2 rounded-xl border flex items-center justify-center ${task.status === 'completed' ? 'bg-emerald-500/20 border-emerald-500/30' : 'bg-white/5 border-white/10'}`}>
                         {task.status === 'completed' ? <CheckCircle className="w-4 h-4 text-emerald-400" /> : <div className="w-4 h-4 rounded-full border-2 border-white/20" />}
                       </div>
                       <div className="space-y-0.5">
                         <span className={`text-xs font-bold block ${task.status === 'completed' ? 'text-white/30 line-through' : 'text-white/90'}`}>{task.title}</span>
-                        <span className="text-[9px] text-white/20 uppercase tracking-widest font-bold">{task.type} Plan</span>
+                        <span className="text-[9px] text-white/20 uppercase tracking-widest font-bold">{task.type}</span>
                       </div>
                     </div>
-                    <div className="p-1.5 bg-white/5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                      <ChevronRight className="w-3.5 h-3.5 text-emerald-400" />
-                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </motion.div>
                 ))}
+                {tasks.length === 0 && <div className="text-center py-10 border-2 border-dashed border-white/5 rounded-2xl text-white/20 text-xs uppercase font-bold tracking-widest leading-loose">No items on today's <br /> botanical schedule</div>}
               </div>
             </motion.div>
 
-            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.15 }} className="bg-white/5 border border-white/10 rounded-3xl p-4 backdrop-blur-md overflow-hidden relative shadow-2xl h-[380px]">
-              <div className="flex justify-between items-center mb-3 px-2"><h3 className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Micro-Climate Intelligence</h3></div>
-              <div className="relative rounded-2xl overflow-hidden border border-white/5 h-[300px]">
-                {coords ? <PlantMap lat={coords.lat} lon={coords.lon} /> : <div className="h-full w-full bg-white/5 animate-pulse flex flex-col items-center justify-center gap-3"><div className="w-12 h-12 rounded-full border-2 border-emerald-500/20 border-t-emerald-500 animate-spin" /><p className="text-white/20 text-[10px] font-bold uppercase tracking-widest">Calibrating Geolocation...</p></div>}
-              </div>
-            </motion.div>
-
-            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-md">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-md shadow-xl">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold flex items-center gap-2"><Bell className="w-5 h-5 text-orange-400" />Active Alerts</h3>
+                <h3 className="text-lg font-bold flex items-center gap-2"><Bell className="w-5 h-5 text-orange-400" />Predictive Alerts</h3>
                 <button onClick={() => setShowCareModal(true)} className="p-2 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl transition-colors group"><Plus className="w-4 h-4 text-emerald-400 group-hover:rotate-90 transition-transform" /></button>
               </div>
               <div className="space-y-4">
@@ -412,55 +394,47 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
             </motion.div>
           </div>
 
-          <div className="lg:col-span-2 space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => onStartChat()} className="bg-gradient-to-r from-emerald-500 to-green-600 p-6 rounded-3xl shadow-xl shadow-emerald-500/10 flex flex-col items-center justify-center gap-3 border border-white/20 group">
-                <div className="p-4 bg-white/20 rounded-2xl group-hover:scale-110 transition-transform"><Camera className="w-8 h-8 text-white" /></div>
-                <div className="text-center"><p className="text-lg font-black uppercase tracking-tighter text-white">Scan Any Plant</p><p className="text-sm text-white/70">Instant AI Diagnosis</p></div>
+          {/* Column 3: Actions & Collection */}
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 gap-4">
+              <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => onStartChat()} className="bg-gradient-to-r from-emerald-500 to-green-600 p-6 rounded-3xl shadow-xl shadow-emerald-500/10 flex items-center gap-4 border border-white/20 group">
+                <div className="p-4 bg-white/20 rounded-2xl group-hover:scale-110 transition-transform"><Camera className="w-6 h-6 text-white" /></div>
+                <div className="text-left"><p className="text-lg font-black uppercase tracking-tighter text-white">Scan Plant</p><p className="text-xs text-white/70">Instant Diagnosis</p></div>
               </motion.button>
-              <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => onStartChat()} className="bg-white/5 border border-white/10 p-6 rounded-3xl flex flex-col items-center justify-center gap-3 hover:bg-white/10 transition-all">
-                <div className="p-4 bg-emerald-500/10 rounded-2xl"><Search className="w-8 h-8 text-emerald-400" /></div>
-                <div className="text-center"><p className="text-lg font-black uppercase tracking-tighter text-white">Expert Chat</p><p className="text-sm text-white/50">Ask about care</p></div>
+              <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => onStartChat()} className="bg-white/5 border border-white/10 p-6 rounded-3xl flex items-center gap-4 hover:bg-white/10 transition-all group">
+                <div className="p-4 bg-emerald-500/10 rounded-2xl group-hover:scale-110 transition-transform"><Search className="w-6 h-6 text-emerald-400" /></div>
+                <div className="text-left"><p className="text-lg font-black uppercase tracking-tighter text-white">Ask Expert</p><p className="text-xs text-white/50">Care Advice</p></div>
               </motion.button>
             </div>
 
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-md">
-              <div className="flex justify-between items-center mb-8">
-                <div><h3 className="text-2xl font-black uppercase tracking-tighter">My Collection</h3><p className="text-white/40 text-sm">Stored healthy and recovering plants</p></div>
-                <button className="text-emerald-400 text-sm font-bold flex items-center gap-1 hover:underline">View All <ChevronRight className="w-4 h-4" /></button>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-md shadow-xl">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-black uppercase tracking-tighter">My Collection</h3>
+                <button className="text-emerald-400 text-xs font-bold flex items-center gap-1 hover:underline">View All <ChevronRight className="w-4 h-4" /></button>
               </div>
-              {plants.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {plants.map((plant, idx) => (
-                    <motion.div key={idx} whileHover={{ scale: 1.03, backgroundColor: 'rgba(255, 255, 255, 0.1)' }} whileTap={{ scale: 0.98 }} onClick={() => onStartChat(plant)} className="bg-white/5 border border-white/10 rounded-[1.5rem] p-5 flex gap-5 items-center cursor-pointer transition-all duration-300">
-                      <div className="w-20 h-20 bg-emerald-900/30 rounded-2xl flex items-center justify-center overflow-hidden border border-white/5">
-                        {plant.image ? <img src={plant.image} alt={plant.name} className="w-full h-full object-cover" /> : <Leaf className="w-10 h-10 text-emerald-700" />}
+              <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                {plants.length > 0 ? plants.map((plant, idx) => (
+                  <motion.div key={idx} whileHover={{ scale: 1.02, backgroundColor: 'rgba(255, 255, 255, 0.08)' }} onClick={() => onStartChat(plant)} className="bg-white/5 border border-white/10 rounded-2xl p-4 flex gap-4 items-center cursor-pointer transition-all duration-300">
+                    <div className="w-14 h-14 bg-emerald-900/30 rounded-xl flex items-center justify-center overflow-hidden border border-white/5 shrink-0">
+                      {plant.image ? <img src={plant.image} alt={plant.name} className="w-full h-full object-cover" /> : <Leaf className="w-8 h-8 text-emerald-700" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-center mb-1 gap-2">
+                        <p className="font-bold text-white uppercase text-[10px] tracking-wider truncate">{plant.name || 'Unnamed'}</p>
+                        <span className={`text-[10px] font-black shrink-0 ${plant.healthScore > 85 ? 'text-emerald-400' : 'text-orange-400'}`}>{plant.healthScore}%</span>
                       </div>
-                      <div>
-                        <div className="flex justify-between items-center mb-1">
-                          <p className="font-bold text-white uppercase text-xs tracking-wider">{plant.name || 'Unnamed'}</p>
-                          <span className={`text-[10px] font-black ${plant.healthScore > 85 ? 'text-emerald-400' : 'text-orange-400'}`}>Score: {plant.healthScore}</span>
-                        </div>
-                        <p className="text-xs text-white/40 mb-2">{plant.diagnosis || 'Healthy'}</p>
-                        <div className="flex items-center gap-2">
-                          <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
-                            <motion.div 
-                              initial={{ width: 0 }} 
-                              animate={{ width: `${plant.healthScore}%` }} 
-                              className={`h-full ${plant.healthScore > 85 ? 'bg-emerald-500' : 'bg-orange-500'}`} 
-                            />
-                          </div>
-                        </div>
+                      <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                        <motion.div initial={{ width: 0 }} animate={{ width: `${plant.healthScore}%` }} className={`h-full ${plant.healthScore > 85 ? 'bg-emerald-500' : 'bg-orange-500'}`} />
                       </div>
-                    </motion.div>
-                  ))}
-                </div>
-              ) : <div className="text-center py-20 border-2 border-dashed border-white/10 rounded-3xl"><div className="inline-flex items-center justify-center w-16 h-16 bg-white/5 rounded-full mb-4"><Leaf className="w-8 h-8 text-white/20" /></div><p className="text-white/30 font-medium">Your plant collection is empty.</p></div>}
+                    </div>
+                  </motion.div>
+                )) : <div className="text-center py-12 border-2 border-dashed border-white/10 rounded-2xl"><Leaf className="w-8 h-8 text-white/10 mx-auto mb-2" /><p className="text-white/20 text-[10px] font-bold uppercase tracking-widest">Empty Collection</p></div>}
+              </div>
             </motion.div>
 
-            <div className="bg-gradient-to-r from-blue-900/20 to-emerald-900/20 border border-blue-500/20 rounded-3xl p-6 flex flex-col sm:flex-row items-center gap-6">
-              <div className="p-4 bg-blue-500/20 rounded-2xl"><ShieldCheck className="w-8 h-8 text-blue-400" /></div>
-              <div><h4 className="text-lg font-bold text-blue-200">Context-Aware Protection</h4><p className="text-sm text-blue-100/60 leading-relaxed">Our system analyzes micro-climate data and predictive modeling to warn you about potential issues before they reach your garden.</p></div>
+            <div className="bg-gradient-to-br from-blue-900/20 via-emerald-900/10 to-transparent border border-blue-500/20 rounded-3xl p-5 flex items-start gap-4 shadow-2xl">
+              <div className="p-3 bg-blue-500/20 rounded-xl shrink-0"><ShieldCheck className="w-6 h-6 text-blue-400" /></div>
+              <div><h4 className="text-sm font-bold text-blue-200 mb-1">Context Protection</h4><p className="text-[10px] text-blue-100/60 leading-relaxed font-medium">Auto-monitoring local climate anomalies to protect your species.</p></div>
             </div>
           </div>
         </div>

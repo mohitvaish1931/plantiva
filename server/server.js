@@ -222,7 +222,7 @@ ${locationContext}`;
       body: JSON.stringify({
         model: OPENROUTER_MODEL,
         messages,
-        max_tokens: 1500,
+        max_tokens: parseInt(process.env.MAX_TOKENS) || 1000,
         temperature: 0.7,
       }),
     });
