@@ -7,6 +7,13 @@ export default defineConfig({
   server: {
     port: 5174,
     strictPort: false,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5005',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '/api')
+      }
+    }
   },
   optimizeDeps: {
     exclude: ['lucide-react'],
