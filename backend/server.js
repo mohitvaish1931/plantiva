@@ -135,7 +135,11 @@ app.post('/api/chat', async (req, res) => {
             model: "openai/gpt-4o-mini", 
             messages: [
               { role: 'user', content: [
-                { type: "text", text: "Identify the plant disease in this image. Respond with ONLY the exact botanical name of the disease or 'Healthy Plant'." },
+                { type: "text", text: `Analyze the plant in this image. 
+                  - If diseased, provide the exact botanical name of the disease.
+                  - If the user asks if it's fake or real, identify if it's a real plant or a plastic/artificial one.
+                  - If healthy, respond with 'Healthy Plant'.
+                  User Question: ${message || 'What is in this image?'}` },
                 { type: "image_url", image_url: { url: imageDataUrl } }
               ]}
             ]
@@ -148,16 +152,18 @@ app.post('/api/chat', async (req, res) => {
       // STEP 2: Professional Clinical Explanation with Nemotron (Fallback to GPT-4o Mini if busy)
       const contextMessage = locationContext ? `[USER CONTEXT: ${locationContext}]` : "";
       const nemotronPrompt = imageDataUrl 
-        ? `${contextMessage}\nAs a senior botanical expert, provide a professional diagnosis for: "${plantDiagnosisName}". 
-           Use exactly this format:
-           1. Disease Name: ${plantDiagnosisName}
-           2. Confidence %: (estimate)
-           3. Symptoms:
-           4. Causes:
-           5. Treatment:
-           6. Prevention:
+        ? `${contextMessage}\nThe user has uploaded an image and says: "${message || 'Analyze this plant'}".
+           AI Vision Core identified the status as: "${plantDiagnosisName}".
            
-           If the plant is 'Healthy Plant', congratulate the user and give one pro-tip for maintenance.`
+           As a senior botanical expert, provide a professional response that DIRECTLY addresses the user's query and incorporates the vision analysis.
+           Use this format if relevant to the diagnosis:
+           1. Disease/Status: ${plantDiagnosisName}
+           2. Confidence %: (estimate)
+           3. Key Observations:
+           4. Recommended Action/Treatment:
+           5. Prevention:
+           
+           Ensure you answer their specific question (e.g., if they asked if it's fake, confirm based on the vision report).`
         : `${contextMessage}\n${message}`;
 
       const finalResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
