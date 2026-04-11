@@ -135,11 +135,12 @@ app.post('/api/chat', async (req, res) => {
             model: "openai/gpt-4o-mini", 
             messages: [
               { role: 'user', content: [
-                { type: "text", text: `Analyze the plant in this image. 
-                  - If diseased, provide the exact botanical name of the disease.
-                  - If the user asks if it's fake or real, identify if it's a real plant or a plastic/artificial one.
-                  - If healthy, respond with 'Healthy Plant'.
-                  User Question: ${message || 'What is in this image?'}` },
+                { type: "text", text: `Analyze the plant in this image for:
+                  1. Plant Identity (Common and Botanical Name).
+                  2. Health Status (Diseases or 'Healthy').
+                  3. Specific User Request: "${message || 'Identify and analyze health'}"
+                  
+                  Respond with a concise summary of the Identity and Health status.` },
                 { type: "image_url", image_url: { url: imageDataUrl } }
               ]}
             ]
@@ -149,21 +150,23 @@ app.post('/api/chat', async (req, res) => {
         plantDiagnosisName = visionData.choices?.[0]?.message?.content || "Plant Health Assessment";
       }
 
-      // STEP 2: Professional Clinical Explanation with Nemotron (Fallback to GPT-4o Mini if busy)
+      // STEP 2: Professional Clinical Explanation (Hybrid Model)
       const contextMessage = locationContext ? `[USER CONTEXT: ${locationContext}]` : "";
       const nemotronPrompt = imageDataUrl 
         ? `${contextMessage}\nThe user has uploaded an image and says: "${message || 'Analyze this plant'}".
-           AI Vision Core identified the status as: "${plantDiagnosisName}".
+           AI Vision Core identified the following: "${plantDiagnosisName}".
            
-           As a senior botanical expert, provide a professional response that DIRECTLY addresses the user's query and incorporates the vision analysis.
-           Use this format if relevant to the diagnosis:
-           1. Disease/Status: ${plantDiagnosisName}
+           As a senior botanical expert, provide a professional response. 
+           ALWAYS start by identifying the plant species if the user asks or if not already clear.
+           
+           Required Output Format:
+           1. Plant Identity & Status: (Common name + Health status)
            2. Confidence %: (estimate)
-           3. Key Observations:
-           4. Recommended Action/Treatment:
-           5. Prevention:
+           3. Detailed Observations:
+           4. Care/Treatment Plan:
+           5. Environmental Advice: (Use the location data if available)
            
-           Ensure you answer their specific question (e.g., if they asked if it's fake, confirm based on the vision report).`
+           Address the user's specific query: "${message || 'Analyze this plant'}" directly in your explanation.`
         : `${contextMessage}\n${message}`;
 
       const finalResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
