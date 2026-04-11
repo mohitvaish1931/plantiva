@@ -92,19 +92,19 @@ const LandingScreen: React.FC<LandingScreenProps> = ({ onStart }) => {
               />
               
               {/* Logo Frame */}
-              <motion.div
-                initial={{ scale: 0.5, opacity: 0, rotate: -10 }}
-                animate={{ scale: 1, opacity: 1, rotate: 0 }}
-                transition={{ type: "spring", stiffness: 100, damping: 15, delay: 0.1 }}
-                whileHover={{ scale: 1.05 }}
-                className="relative w-48 h-48 sm:w-64 sm:h-64 bg-white rounded-full p-2 border-4 border-white/20 shadow-[0_0_50px_rgba(16,185,129,0.3)] overflow-hidden group"
-              >
-                <img 
-                  src="/logo.png" 
-                  alt="Plantiva Logo" 
-                  className="w-full h-full object-cover scale-110 group-hover:scale-125 transition-transform duration-700" 
-                />
-              </motion.div>
+                <motion.div
+                  initial={{ scale: 0.5, opacity: 0, rotate: -10 }}
+                  animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                  transition={{ type: "spring", stiffness: 100, damping: 15, delay: 0.1 }}
+                  whileHover={{ scale: 1.05 }}
+                  className="relative w-48 h-48 sm:w-64 sm:h-64 rounded-full overflow-hidden group"
+                >
+                  <img 
+                    src="/logo.png" 
+                    alt="Plantiva Logo" 
+                    className="w-full h-full object-contain group-hover:scale-125 transition-transform duration-700" 
+                  />
+                </motion.div>
             </div>
 
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black leading-tight mb-4 text-white drop-shadow-lg tracking-tighter">

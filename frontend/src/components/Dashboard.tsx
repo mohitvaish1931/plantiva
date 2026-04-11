@@ -383,11 +383,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
               <div className="absolute inset-[-4px] bg-gradient-to-tr from-emerald-500/50 to-green-300/30 blur-lg rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
               
               {/* Logo Container - making it circular to match the logo content */}
-              <div className="relative w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-full overflow-hidden border-2 border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.2)] group-hover:shadow-[0_0_30px_rgba(16,185,129,0.4)] group-hover:scale-110 transition-all duration-500 ease-out">
+              <div className="relative w-16 h-16 sm:w-20 sm:h-20 overflow-hidden transition-all duration-500 ease-out group-hover:scale-110">
                 <img 
                   src="/logo.png" 
                   alt="Plantiva Logo" 
-                  className="w-full h-full object-cover scale-110" 
+                  className="w-full h-full object-contain" 
                 />
               </div>
             </div>
