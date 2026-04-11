@@ -174,7 +174,7 @@ app.post('/api/chat', async (req, res) => {
         headers: {
           'Authorization': `Bearer ${API_KEY}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://plantiva-main.vercel.app',
+          'HTTP-Referer': 'https://plantiva-three.vercel.app',
           'X-Title': 'Plantiva Expert Pro'
         },
         body: JSON.stringify({ 
