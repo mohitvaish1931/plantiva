@@ -146,8 +146,9 @@ app.post('/api/chat', async (req, res) => {
       }
 
       // STEP 2: Professional Clinical Explanation with Nemotron (Fallback to GPT-4o Mini if busy)
+      const contextMessage = locationContext ? `[USER CONTEXT: ${locationContext}]` : "";
       const nemotronPrompt = imageDataUrl 
-        ? `As a senior botanical expert, provide a professional diagnosis for: "${plantDiagnosisName}". 
+        ? `${contextMessage}\nAs a senior botanical expert, provide a professional diagnosis for: "${plantDiagnosisName}". 
            Use exactly this format:
            1. Disease Name: ${plantDiagnosisName}
            2. Confidence %: (estimate)
@@ -157,7 +158,7 @@ app.post('/api/chat', async (req, res) => {
            6. Prevention:
            
            If the plant is 'Healthy Plant', congratulate the user and give one pro-tip for maintenance.`
-        : message;
+        : `${contextMessage}\n${message}`;
 
       const finalResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
@@ -169,7 +170,10 @@ app.post('/api/chat', async (req, res) => {
         },
         body: JSON.stringify({ 
           model: "openai/gpt-4o-mini", 
-          messages: [{ role: 'user', content: nemotronPrompt }] 
+          messages: [
+            ...conversationHistory.map((m) => ({ role: m.role, content: m.content })),
+            { role: 'user', content: nemotronPrompt }
+          ] 
         }),
       });
 

@@ -147,21 +147,20 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
 
     const fetchByIP = async () => {
       try {
-        // Try multiple services for better reliability and accuracy
-        let res = await fetch('https://ipapi.co/json/');
-        if (!res.ok) res = await fetch('https://ip-api.com/json/');
-        
+        // Use ipwho.is - it's fast, supports HTTPS, and has a generous free tier
+        const res = await fetch('https://ipwho.is/');
         const data = await res.json();
-        const lat = data.latitude || data.lat;
-        const lon = data.longitude || data.lon;
-        const region = data.city || data.region || 'your area';
         
-        if (lat && lon) {
+        if (data.success) {
+          const lat = data.latitude;
+          const lon = data.longitude;
+          const region = data.city || data.region || 'your area';
+          
           setCoords({ lat, lon });
           fetchWeather(lat, lon);
           console.log(`📍 Location accurately detected via IP: ${region}`);
         } else {
-          throw new Error("IP Geolocation failed");
+          throw new Error("IP Geolocation service returned failure");
         }
       } catch (err) {
         console.error("IP Geoloc failed, fallback to London", err);
@@ -197,26 +196,29 @@ const Dashboard: React.FC<DashboardProps> = ({ onStartChat, onLogout }) => {
       }
     }
 
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setCoords({ lat: latitude, lon: longitude });
-          fetchWeather(latitude, longitude);
-          console.log(`🎯 High-accuracy GPS location active: ${latitude}, ${longitude}`);
-        },
-        () => {
-          console.warn("GPS access denied, falling back to IP triangulation...");
-          fetchByIP();
-        },
-        { 
-          timeout: 10000, 
-          enableHighAccuracy: true,
-          maximumAge: 0
-        }
-      );
-    } else {
-      fetchByIP();
+    // Only initiate location if we don't have coords yet
+    if (!coords) {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            setCoords({ lat: latitude, lon: longitude });
+            fetchWeather(latitude, longitude);
+            console.log(`🎯 High-accuracy GPS location active: ${latitude}, ${longitude}`);
+          },
+          () => {
+            console.warn("GPS access denied, falling back to IP triangulation...");
+            fetchByIP();
+          },
+          { 
+            timeout: 8000, 
+            enableHighAccuracy: true,
+            maximumAge: 3600000 // Cache for 1 hour
+          }
+        );
+      } else {
+        fetchByIP();
+      }
     }
 
     // Auto-refresh weather/UV every 15 minutes
