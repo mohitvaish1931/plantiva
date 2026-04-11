@@ -13,8 +13,9 @@ class ApiService {
   private backendUrl: string;
 
   constructor() {
-    // In MERN split, we use relative /api which Vercel or local proxy handles
-    this.backendUrl = '/api';
+    // Use VITE_API_BASE_URL from env, which should be https://plantiva-2.onrender.com on Vercel
+    // Fall back to '/api' for local development (which Vite proxies to localhost:5005)
+    this.backendUrl = import.meta.env.VITE_API_BASE_URL || '/api';
   }
 
   async sendMessage(
