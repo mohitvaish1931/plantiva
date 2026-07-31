@@ -37,9 +37,7 @@ export function Sidebar() {
     >
       {/* Logo */}
       <div className="flex items-center gap-2 px-2 py-4 mb-6">
-        <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center">
-          <Leaf className="w-5 h-5 text-accent" />
-        </div>
+        <img src="/logo.png" alt="Plantiva Logo" className="w-8 h-8 object-contain" />
         <span className="font-bold text-lg tracking-wide uppercase text-white">Plantiva</span>
         <div className="ml-auto w-6 h-6 rounded-md bg-card border border-border flex items-center justify-center cursor-pointer hover:bg-card-hover transition-colors">
           <ChevronRight className="w-4 h-4 text-gray-400" />
