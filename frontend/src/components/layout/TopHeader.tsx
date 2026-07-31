@@ -1,8 +1,28 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Search, Bell } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { notificationService } from '../../services/notificationService';
+import toast from 'react-hot-toast';
 
 export function TopHeader() {
+  const [hasNotifPermission, setHasNotifPermission] = useState(notificationService.getPermissionStatus() === 'granted');
+
+  const handleNotificationClick = async () => {
+    if (hasNotifPermission) {
+      toast('Notifications are already active!', { icon: '🌿' });
+      return;
+    }
+    const granted = await notificationService.requestPermission();
+    setHasNotifPermission(granted);
+    if (granted) {
+      toast.success('Alert notifications enabled! 🌿', {
+        style: { background: '#1a1a1a', color: '#fff', border: '1px solid #333' }
+      });
+    } else {
+      toast.error('Notification permission denied.');
+    }
+  };
+
   return (
     <motion.header 
       initial={{ y: -20, opacity: 0 }}
@@ -33,9 +53,13 @@ export function TopHeader() {
         </div>
 
         {/* Notification */}
-        <button className="relative p-2 rounded-full glass-card hover:bg-card-hover transition-colors group">
-          <Bell className="w-5 h-5 text-gray-300 group-hover:text-white transition-colors" />
-          <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full bg-red ring-2 ring-background"></span>
+        <button 
+          onClick={handleNotificationClick}
+          className="relative p-2 rounded-full glass-card hover:bg-card-hover transition-colors group"
+          title={hasNotifPermission ? "Notifications Active" : "Enable Notifications"}
+        >
+          <Bell className={`w-5 h-5 transition-colors ${hasNotifPermission ? 'text-accent' : 'text-gray-300 group-hover:text-white'}`} />
+          {!hasNotifPermission && <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full bg-red ring-2 ring-background"></span>}
         </button>
       </div>
     </motion.header>

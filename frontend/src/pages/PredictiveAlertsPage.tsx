@@ -3,15 +3,30 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { BellRing, AlertTriangle, ShieldCheck, ChevronDown, Activity, Wind, Droplets } from 'lucide-react';
 import { cn } from '../utils';
 import { useData } from '../context/DataContext';
+import { notificationService } from '../services/notificationService';
+import toast from 'react-hot-toast';
 
 export function PredictiveAlertsPage() {
   const { alerts } = useData();
   const [activeTab, setActiveTab] = useState<'active' | 'historical'>('active');
   const [expandedAlert, setExpandedAlert] = useState<number | null>(null);
+  const [hasNotifPermission, setHasNotifPermission] = useState(notificationService.getPermissionStatus() === 'granted');
 
   const displayedAlerts = alerts.filter(a => 
     activeTab === 'active' ? a.type !== 'resolved' : a.type === 'resolved'
   );
+
+  const handleEnableNotifications = async () => {
+    const granted = await notificationService.requestPermission();
+    setHasNotifPermission(granted);
+    if (granted) {
+      toast.success('Alert notifications enabled! 🌿', {
+        style: { background: '#1a1a1a', color: '#fff', border: '1px solid #333' }
+      });
+    } else {
+      toast.error('Notification permission denied.');
+    }
+  };
 
   return (
     <div className="max-w-[1000px] mx-auto space-y-8 pb-20">
@@ -23,19 +38,30 @@ export function PredictiveAlertsPage() {
           <p className="text-gray-400">AI-driven warnings to protect your plants before issues occur.</p>
         </div>
         
-        <div className="flex items-center gap-3 bg-card border border-border rounded-xl p-1">
-          <button 
-            onClick={() => setActiveTab('active')}
-            className={cn("px-4 py-2 rounded-lg text-sm font-medium transition-colors", activeTab === 'active' ? "bg-red-500/10 text-red-400" : "text-gray-400 hover:text-white")}
-          >
-            Active Threats
-          </button>
-          <button 
-            onClick={() => setActiveTab('historical')}
-            className={cn("px-4 py-2 rounded-lg text-sm font-medium transition-colors", activeTab === 'historical' ? "bg-white/10 text-white" : "text-gray-400 hover:text-white")}
-          >
-            Historical
-          </button>
+        <div className="flex flex-col sm:flex-row items-center gap-4">
+          {!hasNotifPermission && (
+            <button 
+              onClick={handleEnableNotifications}
+              className="px-4 py-2 rounded-xl bg-accent text-black font-semibold text-sm hover:bg-accent-secondary transition-colors flex items-center gap-2"
+            >
+              <BellRing className="w-4 h-4" />
+              Enable Alerts
+            </button>
+          )}
+          <div className="flex items-center gap-3 bg-card border border-border rounded-xl p-1">
+            <button 
+              onClick={() => setActiveTab('active')}
+              className={cn("px-4 py-2 rounded-lg text-sm font-medium transition-colors", activeTab === 'active' ? "bg-red-500/10 text-red-400" : "text-gray-400 hover:text-white")}
+            >
+              Active Threats
+            </button>
+            <button 
+              onClick={() => setActiveTab('historical')}
+              className={cn("px-4 py-2 rounded-lg text-sm font-medium transition-colors", activeTab === 'historical' ? "bg-white/10 text-white" : "text-gray-400 hover:text-white")}
+            >
+              Historical
+            </button>
+          </div>
         </div>
       </div>
 
