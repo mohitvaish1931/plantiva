@@ -3,8 +3,10 @@ import { Search, Bell } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { notificationService } from '../../services/notificationService';
 import toast from 'react-hot-toast';
+import { useData } from '../../context/DataContext';
 
 export function TopHeader() {
+  const { userName } = useData();
   const [hasNotifPermission, setHasNotifPermission] = useState(notificationService.getPermissionStatus() === 'granted');
 
   const handleNotificationClick = async () => {
@@ -31,7 +33,7 @@ export function TopHeader() {
     >
       <div>
         <h1 className="text-2xl font-semibold text-white tracking-tight flex items-center gap-2">
-          Good Morning, <span className="text-accent">Mohit!</span> <span className="text-xl">🌱</span>
+          Good Morning, <span className="text-accent">{userName.split(' ')[0]}!</span> <span className="text-xl">🌱</span>
         </h1>
         <p className="text-sm text-gray-400 mt-1">AI-Powered care for healthier plants and a greener tomorrow.</p>
       </div>

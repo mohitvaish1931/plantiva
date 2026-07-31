@@ -15,6 +15,7 @@ import {
   Leaf
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useData } from '../../context/DataContext';
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
@@ -29,6 +30,7 @@ const menuItems = [
 ];
 
 export function Sidebar() {
+  const { userName } = useData();
   return (
     <motion.aside 
       initial={{ x: -20, opacity: 0 }}
@@ -77,11 +79,11 @@ export function Sidebar() {
       <div className="p-3 rounded-xl glass-card flex items-center gap-3 cursor-pointer hover:bg-card-hover transition-colors">
         <img 
           src="/assets/images/expert_avatar_1785433498995.jpg" 
-          alt="Mohit" 
+          alt={userName} 
           className="w-10 h-10 rounded-full object-cover border border-border"
         />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-white truncate">Mohit Lalwani</p>
+          <p className="text-sm font-medium text-white truncate">{userName}</p>
           <p className="text-xs text-accent truncate">Premium Plan</p>
         </div>
       </div>

@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Settings, User, Bell, Shield, Smartphone } from 'lucide-react';
 import { cn } from '../utils';
+import { useData } from '../context/DataContext';
 
 export function SettingsPage() {
+  const { userName } = useData();
   const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'devices'>('profile');
 
   const tabs = [
@@ -74,11 +76,11 @@ export function SettingsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-400">Full Name</label>
-                    <input type="text" defaultValue="Mohit Vaish" className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all" />
+                    <input type="text" defaultValue={userName} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all" />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-400">Email Address</label>
-                    <input type="email" defaultValue="mohit@example.com" className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all" />
+                    <input type="email" defaultValue={`${userName.split(' ')[0].toLowerCase()}@example.com`} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all" />
                   </div>
                 </div>
 

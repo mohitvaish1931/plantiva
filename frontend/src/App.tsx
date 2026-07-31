@@ -16,8 +16,22 @@ import { ReportsPage } from './pages/ReportsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { Toaster } from 'react-hot-toast';
 import { Analytics } from "@vercel/analytics/react";
+import LandingScreen from './components/LandingScreen';
 
 function App() {
+  const [showLanding, setShowLanding] = React.useState(!localStorage.getItem('learnerbot_username'));
+
+  if (showLanding) {
+    return (
+      <LandingScreen 
+        onStart={() => {
+          setShowLanding(false);
+          window.location.reload(); // Reload to initialize DataContext properly
+        }} 
+      />
+    );
+  }
+
   return (
     <DataProvider>
       <BrowserRouter>
