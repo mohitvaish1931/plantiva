@@ -15,6 +15,7 @@ import { EnvironmentPage } from './pages/EnvironmentPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { Toaster } from 'react-hot-toast';
+import { Analytics } from "@vercel/analytics/react";
 
 function App() {
   return (
@@ -61,6 +62,7 @@ function App() {
               border: '1px solid rgba(255,255,255,0.1)',
             }
           }}/>
+          <Analytics />
         </div>
       </BrowserRouter>
     </DataProvider>
