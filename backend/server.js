@@ -119,55 +119,29 @@ app.post('/api/chat', async (req, res) => {
     }
 
     try {
-      let plantDiagnosisName = "";
+      const contextMessage = locationContext ? `[USER CONTEXT: ${locationContext}]\n` : "";
       
-      // STEP 1: High-Precision Visual Identification
+      let userContent;
       if (imageDataUrl) {
-        const visionResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: { 
-            'Authorization': `Bearer ${API_KEY}`, 
-            'Content-Type': 'application/json',
-            'HTTP-Referer': 'https://plantiva-main.vercel.app',
-            'X-Title': 'Plantiva Vision Core'
-          },
-          body: JSON.stringify({ 
-            model: "openai/gpt-4o-mini", 
-            messages: [
-              { role: 'user', content: [
-                { type: "text", text: `Analyze the plant in this image for:
-                  1. Plant Identity (Common and Botanical Name).
-                  2. Health Status (Diseases or 'Healthy').
-                  3. Specific User Request: "${message || 'Identify and analyze health'}"
-                  
-                  Respond with a concise summary of the Identity and Health status.` },
-                { type: "image_url", image_url: { url: imageDataUrl } }
-              ]}
-            ]
-          }),
-        });
-        const visionData = await visionResponse.json();
-        plantDiagnosisName = visionData.choices?.[0]?.message?.content || "Plant Health Assessment";
-      }
+        userContent = [
+          { 
+            type: "text", 
+            text: `${contextMessage}As a senior botanical expert, analyze this plant image and the user's query: "${message || 'Analyze this plant'}".
 
-      // STEP 2: Professional Clinical Explanation (Hybrid Model)
-      const contextMessage = locationContext ? `[USER CONTEXT: ${locationContext}]` : "";
-      const nemotronPrompt = imageDataUrl 
-        ? `${contextMessage}\nThe user has uploaded an image and says: "${message || 'Analyze this plant'}".
-           AI Vision Core identified the following: "${plantDiagnosisName}".
-           
-           As a senior botanical expert, provide a professional response. 
-           ALWAYS start by identifying the plant species if the user asks or if not already clear.
-           
-           Required Output Format:
-           1. Plant Identity & Status: (Common name + Health status)
-           2. Confidence %: (estimate)
-           3. Detailed Observations:
-           4. Care/Treatment Plan:
-           5. Environmental Advice: (Use the location data if available)
-           
-           Address the user's specific query: "${message || 'Analyze this plant'}" directly in your explanation.`
-        : `${contextMessage}\n${message}`;
+ALWAYS start by identifying the plant species.
+
+Required Output Format:
+1. Plant Identity & Status: (Common name + Health status)
+2. Confidence %: (estimate)
+3. Detailed Observations:
+4. Care/Treatment Plan:
+5. Environmental Advice: (Use the location data if available)`
+          },
+          { type: "image_url", image_url: { url: imageDataUrl } }
+        ];
+      } else {
+        userContent = `${contextMessage}${message}`;
+      }
 
       const finalResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
@@ -179,9 +153,10 @@ app.post('/api/chat', async (req, res) => {
         },
         body: JSON.stringify({ 
           model: "openai/gpt-4o-mini", 
+          max_tokens: 800,
           messages: [
             ...conversationHistory.map((m) => ({ role: m.role, content: m.content })),
-            { role: 'user', content: nemotronPrompt }
+            { role: 'user', content: userContent }
           ] 
         }),
       });
