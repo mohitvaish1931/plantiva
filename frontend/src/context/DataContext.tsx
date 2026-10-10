@@ -1,11 +1,14 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Plant, UserProgress } from '../types';
-import { weatherService, WeatherData } from '../services/weatherService';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef, ReactNode } from 'react';
+import { Plant } from '../types';
+import { weatherService, WeatherData, LocationSource, ResolvedLocation } from '../services/weatherService';
 import { dataService } from '../services/dataService';
 import { progressService } from '../services/progressService';
+import { STORAGE_KEYS, getStoredUserName, clearUserData, readJson, normalizePlant, mergePlants } from '../services/session';
+import { dayKey } from '../utils';
 
 export type CareTask = {
-  id: number;
+  id: string;
+  plantId: string;
   plantName: string;
   type: 'water' | 'fertilize' | 'prune' | 'sunlight';
   dueDate: string;
@@ -26,6 +29,11 @@ interface DataContextType {
   userName: string;
   plants: Plant[];
   weather: WeatherData | null;
+  weatherLoading: boolean;
+  weatherError: string | null;
+  locationSource: LocationSource | null;
+  /** Short description of place + weather, sent to the AI with every question. */
+  locationContext: string;
   tasks: CareTask[];
   alerts: Alert[];
   xp: number;
@@ -33,276 +41,323 @@ interface DataContextType {
   addPlant: (plant: Plant) => void;
   updatePlant: (id: string, updates: Partial<Plant>) => void;
   deletePlant: (id: string) => void;
-  toggleTaskComplete: (id: number) => void;
+  toggleTaskComplete: (id: string) => void;
+  refreshWeather: () => Promise<void>;
+  setUserName: (name: string) => void;
+  logout: () => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
-export function DataProvider({ children }: { children: ReactNode }) {
-  const [userName, setUserName] = useState<string>('Learning Champion');
-  const [plants, setPlants] = useState<Plant[]>([]);
-  const [weather, setWeather] = useState<WeatherData | null>(null);
-  const [tasks, setTasks] = useState<CareTask[]>([]);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [xp, setXp] = useState<number>(0);
-  const [loading, setLoading] = useState(true);
+const WEATHER_CACHE_MS = 15 * 60 * 1000;
+const SAVED_LOCATION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
-  useEffect(() => {
-    // Load initial data
-    const initData = async () => {
-      setLoading(true);
-      try {
-        // 1. Get user name
-        const storedName = localStorage.getItem('learnerbot_username') || 'Learning Champion';
-        setUserName(storedName);
+type SavedLocation = { lat: number; lon: number; source: LocationSource; savedAt: number };
 
-        // 2. Load Plants
-        const storedPlants: Plant[] = JSON.parse(localStorage.getItem('learnerbot_plants') || '[]');
-        setPlants(storedPlants);
+function getGpsPosition(): Promise<{ lat: number; lon: number }> {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) return reject(new Error('Geolocation not supported'));
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+      err => reject(err),
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 10 * 60 * 1000 }
+    );
+  });
+}
 
-        // 3. Load Progress
-        setXp(progressService.getProgress().xp);
+/** GPS first, then the last GPS fix we saved, then an IP-based estimate. */
+async function resolveLocation(): Promise<ResolvedLocation | null> {
+  try {
+    const { lat, lon } = await getGpsPosition();
+    return { lat, lon, source: 'gps' };
+  } catch {
+    const saved = readJson<SavedLocation | null>(STORAGE_KEYS.location, null);
+    if (saved && saved.source === 'gps' && Date.now() - saved.savedAt < SAVED_LOCATION_MAX_AGE_MS) {
+      return { lat: saved.lat, lon: saved.lon, source: 'saved' };
+    }
+    try {
+      return await weatherService.getIpLocation();
+    } catch {
+      return null;
+    }
+  }
+}
 
-        // 4. Fetch Weather
-        // Try getting geolocation, fallback to London
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(
-            async (position) => {
-              try {
-                const weatherData = await weatherService.getWeatherDataByCoords(
-                  position.coords.latitude, 
-                  position.coords.longitude
-                );
-                setWeather(weatherData);
-                generateDynamicAlerts(weatherData, storedPlants);
-              } catch (e) {
-                fallbackWeather(storedPlants);
-              }
-            },
-            () => fallbackWeather(storedPlants)
-          );
-        } else {
-          fallbackWeather(storedPlants);
-        }
+function buildTasks(plants: Plant[], done: Record<string, string>): CareTask[] {
+  const today = dayKey();
+  const tomorrow = dayKey(new Date(Date.now() + 86400000));
+  const tasks: CareTask[] = [];
 
-        // 5. Generate Tasks based on actual plants
-        generateDynamicTasks(storedPlants);
+  // Only the latest scan of each plant name produces tasks, so rescans don't duplicate them.
+  const seen = new Set<string>();
+  const latest = plants.filter(p => {
+    const key = p.name.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 
-      } catch (e) {
-        console.error("Failed to initialize DataContext", e);
-      } finally {
-        setLoading(false);
-      }
+  latest.forEach(plant => {
+    const text = `${plant.diagnosis || ''} ${plant.disease || ''}`.toLowerCase();
+    const add = (type: CareTask['type'], dueDay: string) => {
+      const id = `${plant.id}-${type}-${dueDay}`;
+      tasks.push({
+        id,
+        plantId: plant.id,
+        plantName: plant.name,
+        type,
+        dueDate: dueDay === today ? 'Today' : 'Tomorrow',
+        isCompleted: !!done[id],
+      });
     };
 
-    initData();
-  }, []);
+    const before = tasks.length;
+    if (plant.healthScore < 75 || /nutrient|fertili[sz]|yellowing|chlorosis/.test(text)) add('fertilize', today);
+    if (/dry|wilt|water|underwater|thirst/.test(text) || plant.healthScore >= 85) add('water', today);
+    if (/prune|dead|dying|blight|rot|remove (the )?(affected|infected)/.test(text) || plant.healthScore < 60) add('prune', tomorrow);
+    if (tasks.length === before) add('sunlight', tomorrow);
+  });
 
-  const fallbackWeather = async (currentPlants: Plant[]) => {
-    try {
-      const weatherData = await weatherService.getWeatherDataByCity('London');
-      setWeather(weatherData);
-      generateDynamicAlerts(weatherData, currentPlants);
-    } catch (e) {
-      console.error("Weather fallback failed", e);
-    }
-  };
+  return tasks;
+}
 
-  const generateDynamicTasks = (currentPlants: Plant[]) => {
-    if (currentPlants.length === 0) {
-      setTasks([]);
-      return;
-    }
-    
-    let newTasks: CareTask[] = [];
-    let taskIdCounter = Date.now();
+function buildAlerts(weather: WeatherData | null, plants: Plant[]): Alert[] {
+  const alerts: Alert[] = [];
+  if (plants.length === 0) return alerts;
+  let id = 1;
 
-    currentPlants.forEach(plant => {
-      const lowerDiagnosis = (plant.diagnosis || '').toLowerCase();
-      
-      // Smart Task Generation based on condition
-      if (plant.healthScore < 75 || lowerDiagnosis.includes('nutrient') || lowerDiagnosis.includes('fertilizer')) {
-        newTasks.push({
-          id: taskIdCounter++,
-          plantName: plant.name,
-          type: 'fertilize',
-          dueDate: 'Today',
-          isCompleted: false
-        });
-      }
-      
-      if (lowerDiagnosis.includes('dry') || lowerDiagnosis.includes('water') || plant.healthScore >= 90) {
-        newTasks.push({
-          id: taskIdCounter++,
-          plantName: plant.name,
-          type: 'water',
-          dueDate: plant.healthScore >= 90 ? 'In 2 days' : 'Today',
-          isCompleted: false
-        });
-      }
-
-      if (lowerDiagnosis.includes('prune') || lowerDiagnosis.includes('dead') || plant.healthScore < 60) {
-        newTasks.push({
-          id: taskIdCounter++,
-          plantName: plant.name,
-          type: 'prune',
-          dueDate: 'Tomorrow',
-          isCompleted: false
-        });
-      }
-
-      // Default task if nothing matched
-      if (newTasks.filter(t => t.plantName === plant.name).length === 0) {
-        newTasks.push({
-          id: taskIdCounter++,
-          plantName: plant.name,
-          type: 'sunlight',
-          dueDate: 'Tomorrow',
-          isCompleted: false
-        });
-      }
-    });
-
-    setTasks(newTasks);
-  };
-
-  const generateDynamicAlerts = (weatherData: WeatherData, currentPlants: Plant[]) => {
-    const newAlerts: Alert[] = [];
-    
-    if (currentPlants.length === 0) {
-      setAlerts([]);
-      return;
-    }
-
-    // Weather Alerts
-    if (weatherData.temp > 35) {
-      newAlerts.push({
-        id: Date.now(),
+  if (weather) {
+    if (weather.temp > 35) {
+      alerts.push({
+        id: id++,
         type: 'critical',
         title: 'Extreme Heat Warning',
-        description: `Temperatures expected to reach ${weatherData.temp}°C. Move sensitive plants indoors.`,
+        description: `It is ${weather.temp}°C in ${weather.city}. Move sensitive plants out of direct sun.`,
         timestamp: 'Just now',
-        details: 'The micro-climate monitor has detected an incoming heatwave. Prolonged exposure to temperatures above 32°C can cause irreversible cellular damage.',
+        details: 'Prolonged exposure to temperatures above 32°C can cause leaf scorch and wilting. Water early in the morning and provide shade in the afternoon.',
         metrics: [
-          { label: 'Forecast', value: `${weatherData.temp}°C`, icon: null },
-          { label: 'Condition', value: weatherData.description, icon: null }
+          { label: 'Temperature', value: `${weather.temp}°C`, icon: null },
+          { label: 'Condition', value: weather.description, icon: null }
         ]
       });
     }
 
-    if (weatherData.humidity < 40) {
-      newAlerts.push({
-        id: Date.now() + 1,
+    if (weather.humidity < 40) {
+      alerts.push({
+        id: id++,
         type: 'warning',
         title: 'Low Humidity Detected',
-        description: `Indoor humidity is ${weatherData.humidity}%. Tropical plants at risk.`,
-        timestamp: '1 hour ago',
-        details: 'Continuous monitoring shows a sharp decline in ambient humidity. Consider activating a humidifier.',
+        description: `Humidity in ${weather.city} is ${weather.humidity}%. Tropical plants are at risk.`,
+        timestamp: 'Just now',
+        details: 'Low humidity dries out leaf edges. Group plants together, use a pebble tray, or mist leaves in the morning.',
         metrics: [
-          { label: 'Current', value: `${weatherData.humidity}%`, icon: null },
-          { label: 'Target', value: '55%', icon: null }
+          { label: 'Current', value: `${weather.humidity}%`, icon: null },
+          { label: 'Target', value: '50-60%', icon: null }
         ]
       });
     }
 
-    // Plant Condition Predictive Alerts
-    currentPlants.forEach((plant, index) => {
-      if (plant.healthScore < 70) {
-        newAlerts.push({
-          id: Date.now() + 2 + index,
-          type: 'critical',
-          title: `Health Alert: ${plant.name}`,
-          description: `Health score dropped to ${plant.healthScore}%. Immediate action required.`,
-          timestamp: 'Just now',
-          details: `Our predictive AI noticed a declining health trend for ${plant.name}. Based on the diagnosis "${plant.diagnosis?.substring(0, 50)}...", intervention is necessary.`,
-          metrics: [
-            { label: 'Current Health', value: `${plant.healthScore}%`, icon: null },
-            { label: 'Status', value: 'Critical', icon: null }
-          ]
-        });
-      } else if (plant.healthScore >= 70 && plant.healthScore <= 85) {
-        newAlerts.push({
-          id: Date.now() + 2 + index,
-          type: 'warning',
-          title: `Monitor: ${plant.name}`,
-          description: `Health score is at ${plant.healthScore}%. Minor care adjustments suggested.`,
-          timestamp: '2 hours ago',
-          details: `The plant is doing okay, but some signs of stress were detected during the last scan.`,
-          metrics: [
-            { label: 'Current Health', value: `${plant.healthScore}%`, icon: null },
-            { label: 'Trend', value: 'Stable', icon: null }
-          ]
-        });
-      }
-    });
+    if (weather.uvIndex >= 8) {
+      alerts.push({
+        id: id++,
+        type: 'warning',
+        title: 'Very High UV Today',
+        description: `UV index is ${weather.uvIndex}. Keep shade-loving plants away from direct midday sun.`,
+        timestamp: 'Just now',
+        details: 'Strong UV can bleach and burn leaves of indoor and shade plants within hours.',
+        metrics: [
+          { label: 'UV Index', value: String(weather.uvIndex), icon: null },
+          { label: 'Risk', value: weather.sunImpact, icon: null }
+        ]
+      });
+    }
+  }
 
-    setAlerts(newAlerts);
-  };
+  plants.forEach(plant => {
+    if (plant.healthScore < 70) {
+      alerts.push({
+        id: id++,
+        type: 'critical',
+        title: `Health Alert: ${plant.name}`,
+        description: `Health score is ${plant.healthScore}%${plant.disease && plant.disease !== 'None' ? ` (${plant.disease})` : ''}. Action needed.`,
+        timestamp: new Date(plant.addedAt).toLocaleDateString(),
+        details: `Latest scan of ${plant.name}: "${(plant.diagnosis || '').substring(0, 120)}..."`,
+        metrics: [
+          { label: 'Current Health', value: `${plant.healthScore}%`, icon: null },
+          { label: 'Status', value: 'Critical', icon: null }
+        ]
+      });
+    } else if (plant.healthScore <= 85) {
+      alerts.push({
+        id: id++,
+        type: 'warning',
+        title: `Monitor: ${plant.name}`,
+        description: `Health score is ${plant.healthScore}%. Minor care adjustments suggested.`,
+        timestamp: new Date(plant.addedAt).toLocaleDateString(),
+        details: 'The plant is doing okay, but some signs of stress were detected during the last scan.',
+        metrics: [
+          { label: 'Current Health', value: `${plant.healthScore}%`, icon: null },
+          { label: 'Trend', value: 'Stable', icon: null }
+        ]
+      });
+    }
+  });
 
-  const savePlantsToStorage = (plantsToSave: Plant[]) => {
+  return alerts;
+}
+
+function buildLocationContext(weather: WeatherData | null, source: LocationSource | null): string {
+  if (!weather) return '';
+  const place = [weather.area, weather.city, weather.country].filter(Boolean).join(', ');
+  const precision = source === 'ip' ? ' (approximate, from IP)' : '';
+  return `Location: ${place}${precision}. Weather now: ${weather.temp}°C (feels ${weather.feelsLike}°C), ${weather.description}, humidity ${weather.humidity}%, wind ${weather.windSpeed} km/h, UV index ${weather.uvIndex} (${weather.sunImpact}), air quality ${weather.aqiStatus}, chance of rain ${weather.precipitation}%. Local date: ${new Date().toDateString()}.`;
+}
+
+/** Caps what we persist; plant images are already small thumbnails (see ScanPlantPage). */
+function forStorage(plants: Plant[]): Plant[] {
+  return plants.slice(0, 50);
+}
+
+export function DataProvider({ children }: { children: ReactNode }) {
+  const [userName, setUserNameState] = useState<string>(() => getStoredUserName() || 'Plant Lover');
+  const [plants, setPlants] = useState<Plant[]>(() =>
+    readJson<any[]>(STORAGE_KEYS.plants, []).map(normalizePlant)
+  );
+  const [weather, setWeather] = useState<WeatherData | null>(() => {
+    const cached = readJson<WeatherData | null>(STORAGE_KEYS.weather, null);
+    return cached && Array.isArray(cached.forecast) ? cached : null;
+  });
+  const [weatherLoading, setWeatherLoading] = useState(false);
+  const [weatherError, setWeatherError] = useState<string | null>(null);
+  const [locationSource, setLocationSource] = useState<LocationSource | null>(
+    () => readJson<SavedLocation | null>(STORAGE_KEYS.location, null)?.source ?? null
+  );
+  const [doneTasks, setDoneTasks] = useState<Record<string, string>>(() => readJson(STORAGE_KEYS.tasksDone, {}));
+  const [xp] = useState<number>(() => progressService.getProgress().xp);
+  const [loading, setLoading] = useState(true);
+  const syncTimer = useRef<number | null>(null);
+
+  const refreshWeather = useCallback(async () => {
+    setWeatherLoading(true);
+    setWeatherError(null);
     try {
-      localStorage.setItem('learnerbot_plants', JSON.stringify(plantsToSave));
-    } catch (e: any) {
-      if (e.name === 'QuotaExceededError' || e.code === 22 || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
-        console.warn("Storage quota exceeded, removing oldest plant images to make space...");
-        let minimizedPlants = JSON.parse(JSON.stringify(plantsToSave));
-        
-        // Progressively remove images from oldest to newest until it fits
-        for (let i = minimizedPlants.length - 1; i >= 0; i--) {
-          if (minimizedPlants[i].image) {
-            minimizedPlants[i].image = null;
-            try {
-              localStorage.setItem('learnerbot_plants', JSON.stringify(minimizedPlants));
-              return; // Success!
-            } catch (innerE) {
-              continue; // Still too big, keep removing
-            }
-          }
+      const location = await resolveLocation();
+      if (!location) throw new Error('Could not detect your location. Allow location access and tap refresh.');
+
+      const data = await weatherService.getWeatherDataByCoords(location.lat, location.lon);
+      setWeather(data);
+      setLocationSource(location.source);
+      try {
+        localStorage.setItem(STORAGE_KEYS.weather, JSON.stringify(data));
+        if (location.source !== 'saved') {
+          const saved: SavedLocation = { lat: location.lat, lon: location.lon, source: location.source, savedAt: Date.now() };
+          localStorage.setItem(STORAGE_KEYS.location, JSON.stringify(saved));
         }
-        
-        // If all images are removed and it still fails, truncate the array
-        try {
-          localStorage.setItem('learnerbot_plants', JSON.stringify(minimizedPlants.slice(0, 20)));
-        } catch (finalE) {
-          console.error("Could not save plants even after minimization.", finalE);
-        }
-      } else {
-        console.error("Error saving to localStorage", e);
+      } catch { /* storage full or unavailable */ }
+    } catch (e) {
+      console.error('Weather refresh failed', e);
+      setWeatherError(e instanceof Error ? e.message : 'Weather unavailable');
+    } finally {
+      setWeatherLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const cachedFresh = weather && Date.now() - weather.updatedAt < WEATHER_CACHE_MS;
+    if (!cachedFresh) refreshWeather();
+
+    // Pull plants saved on the server (e.g. from another device) and merge them in.
+    const name = getStoredUserName();
+    if (name) {
+      dataService.getUserData(name)
+        .then(user => {
+          const remote = (user.plants || []).map(normalizePlant);
+          if (remote.length) setPlants(local => mergePlants(local, remote));
+        })
+        .catch(() => { /* offline or database down; local data is still shown */ })
+        .finally(() => setLoading(false));
+    } else {
+      setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist plants locally and (debounced) to the server whenever they change.
+  useEffect(() => {
+    const toSave = forStorage(plants);
+    try {
+      localStorage.setItem(STORAGE_KEYS.plants, JSON.stringify(toSave));
+    } catch {
+      try {
+        localStorage.setItem(STORAGE_KEYS.plants, JSON.stringify(toSave.map((p, i) => (i < 10 ? p : { ...p, image: null }))));
+      } catch (e) {
+        console.error('Could not save plants', e);
       }
     }
-  };
 
-  const addPlant = (plant: Plant) => {
-    const newPlants = [plant, ...plants];
-    setPlants(newPlants);
-    savePlantsToStorage(newPlants);
-    generateDynamicTasks(newPlants);
-    if (weather) generateDynamicAlerts(weather, newPlants);
-  };
+    const name = getStoredUserName();
+    if (!name || loading) return;
+    if (syncTimer.current) window.clearTimeout(syncTimer.current);
+    syncTimer.current = window.setTimeout(() => {
+      dataService.syncUserData(name, toSave).catch(() => { /* will retry on next change */ });
+    }, 1500);
+  }, [plants, loading]);
 
-  const updatePlant = (id: string, updates: Partial<Plant>) => {
-    const newPlants = plants.map(p => p.id === id ? { ...p, ...updates } : p);
-    setPlants(newPlants);
-    savePlantsToStorage(newPlants);
-  };
+  useEffect(() => {
+    try {
+      // Keep two weeks of completions so the object doesn't grow forever.
+      const cutoff = dayKey(new Date(Date.now() - 14 * 86400000));
+      const pruned = Object.fromEntries(Object.entries(doneTasks).filter(([, day]) => day >= cutoff));
+      localStorage.setItem(STORAGE_KEYS.tasksDone, JSON.stringify(pruned));
+    } catch { /* ignore */ }
+  }, [doneTasks]);
 
-  const deletePlant = (id: string) => {
-    const newPlants = plants.filter(p => p.id !== id);
-    setPlants(newPlants);
-    savePlantsToStorage(newPlants);
-    generateDynamicTasks(newPlants);
-    if (weather) generateDynamicAlerts(weather, newPlants);
-  };
+  const tasks = useMemo(() => buildTasks(plants, doneTasks), [plants, doneTasks]);
+  const alerts = useMemo(() => buildAlerts(weather, plants), [weather, plants]);
+  const locationContext = useMemo(() => buildLocationContext(weather, locationSource), [weather, locationSource]);
 
-  const toggleTaskComplete = (id: number) => {
-    setTasks(tasks.map(t => t.id === id ? { ...t, isCompleted: !t.isCompleted } : t));
-  };
+  const addPlant = useCallback((plant: Plant) => {
+    setPlants(prev => [plant, ...prev]);
+  }, []);
+
+  const updatePlant = useCallback((id: string, updates: Partial<Plant>) => {
+    setPlants(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+  }, []);
+
+  const deletePlant = useCallback((id: string) => {
+    setPlants(prev => prev.filter(p => p.id !== id));
+  }, []);
+
+  const toggleTaskComplete = useCallback((id: string) => {
+    setDoneTasks(prev => {
+      const next = { ...prev };
+      if (next[id]) delete next[id];
+      else next[id] = dayKey();
+      return next;
+    });
+  }, []);
+
+  const setUserName = useCallback((name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    try { localStorage.setItem(STORAGE_KEYS.userName, trimmed); } catch { /* ignore */ }
+    setUserNameState(trimmed);
+  }, []);
+
+  const logout = useCallback(() => {
+    clearUserData();
+    window.location.href = '/';
+  }, []);
 
   return (
     <DataContext.Provider value={{
       userName,
       plants,
       weather,
+      weatherLoading,
+      weatherError,
+      locationSource,
+      locationContext,
       tasks,
       alerts,
       xp,
@@ -310,7 +365,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       addPlant,
       updatePlant,
       deletePlant,
-      toggleTaskComplete
+      toggleTaskComplete,
+      refreshWeather,
+      setUserName,
+      logout
     }}>
       {children}
     </DataContext.Provider>

@@ -32,7 +32,7 @@ export function Dashboard() {
       className="max-w-[1600px] mx-auto space-y-6 pb-20"
     >
       {/* Top Row: Weather, Routine, Scan, Expert */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         <div className="lg:col-span-1">
           <WeatherCard />
         </div>

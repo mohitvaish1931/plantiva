@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Search, ChevronRight } from 'lucide-react';
-import { cn } from '../../../utils';
+import { useNavigate } from 'react-router-dom';
 
 const itemVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -9,13 +9,18 @@ const itemVariants = {
 };
 
 export function ExpertCard() {
+  const navigate = useNavigate();
   return (
-    <motion.div 
-      variants={itemVariants} 
-      className="glass-card h-full flex flex-col relative overflow-hidden group cursor-pointer"
+    <motion.div
+      variants={itemVariants}
+      role="button"
+      tabIndex={0}
+      onClick={() => navigate('/ai-expert')}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate('/ai-expert'); }}
+      className="glass-card h-full min-h-[180px] flex flex-col relative overflow-hidden group cursor-pointer"
     >
       {/* Background Image (Expert Avatar) */}
-      <div 
+      <div
         className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
         style={{ backgroundImage: 'url("/assets/images/expert_avatar_1785433498995.jpg")' }}
       >
@@ -33,7 +38,7 @@ export function ExpertCard() {
 
       <div className="flex-1 flex flex-col justify-end p-5 relative z-10">
         <div className="flex justify-end">
-          <motion.div 
+          <motion.div
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             className="w-10 h-10 rounded-full bg-accent text-black flex items-center justify-center shadow-glow-accent"

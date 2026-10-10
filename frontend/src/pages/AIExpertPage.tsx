@@ -2,14 +2,17 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BrainCircuit, Send, Loader2, Leaf, Sparkles, MessageSquare } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '../utils';
 import { apiService, ChatMessage } from '../services/apiService';
+import { useData } from '../context/DataContext';
 
 type Message = {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  isError?: boolean;
 };
 
 const SUGGESTED_PROMPTS = [
@@ -20,6 +23,9 @@ const SUGGESTED_PROMPTS = [
 ];
 
 export function AIExpertPage() {
+  const { locationContext, plants, userName } = useData();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -56,18 +62,27 @@ export function AIExpertPage() {
 
     try {
       // Map existing messages to ChatMessage format for context
-      const history: ChatMessage[] = messages.map(m => ({
-        role: m.role,
-        content: m.content
-      }));
+      const history: ChatMessage[] = messages
+        .filter(m => !m.isError)
+        .map(m => ({ role: m.role, content: m.content }));
 
-      const response = await apiService.sendMessage(content.trim(), history);
-      
+      const collection = plants.slice(0, 8)
+        .map(p => `${p.name} (health ${p.healthScore}/100${p.disease && p.disease !== 'None' ? `, ${p.disease}` : ''})`)
+        .join('; ');
+      const context = [
+        `User's name: ${userName}.`,
+        locationContext,
+        collection ? `User's scanned plants: ${collection}.` : ''
+      ].filter(Boolean).join(' ');
+
+      const response = await apiService.sendMessage(content.trim(), history, { locationContext: context });
+
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: response.message,
         timestamp: new Date(),
+        isError: !!response.error,
       };
 
       setMessages(prev => [...prev, botMessage]);
@@ -76,13 +91,26 @@ export function AIExpertPage() {
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: "I'm having a little trouble connecting to my neural network right now. Could you please try asking again?",
+        content: "I couldn't process that. Please try again.",
         timestamp: new Date(),
+        isError: true,
       }]);
     } finally {
       setIsTyping(false);
     }
   };
+
+  // Questions handed over from other screens (dashboard insight, report, search bar).
+  const handledQuestion = useRef(false);
+  useEffect(() => {
+    const question = (location.state as { question?: string } | null)?.question;
+    if (question && !handledQuestion.current) {
+      handledQuestion.current = true;
+      navigate(location.pathname, { replace: true, state: null });
+      handleSendMessage(question);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -142,7 +170,9 @@ export function AIExpertPage() {
                   "rounded-2xl p-4 text-sm leading-relaxed",
                   message.role === 'user'
                     ? "bg-accent text-black font-medium"
-                    : "bg-card border border-border/50 text-gray-200"
+                    : message.isError
+                      ? "bg-red-500/10 border border-red-500/30 text-gray-200"
+                      : "bg-card border border-border/50 text-gray-200"
                 )}>
                   {message.role === 'user' ? (
                     message.content

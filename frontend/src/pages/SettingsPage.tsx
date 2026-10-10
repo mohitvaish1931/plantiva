@@ -1,12 +1,28 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings, User, Bell, Shield, Smartphone } from 'lucide-react';
+import { User, Bell, Shield, Smartphone, LogOut } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { cn } from '../utils';
 import { useData } from '../context/DataContext';
 
 export function SettingsPage() {
-  const { userName } = useData();
+  const { userName, setUserName, logout, plants } = useData();
   const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'devices'>('profile');
+  const [nameInput, setNameInput] = useState(userName);
+
+  const handleSave = () => {
+    const trimmed = nameInput.trim();
+    if (!trimmed) {
+      toast.error('Name cannot be empty');
+      return;
+    }
+    setUserName(trimmed);
+    toast.success('Name updated');
+  };
+
+  const handleLogout = () => {
+    if (window.confirm('Log out? Scans saved only on this device will be removed from it.')) logout();
+  };
 
   const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
@@ -75,17 +91,34 @@ export function SettingsPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-400">Full Name</label>
-                    <input type="text" defaultValue={userName} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all" />
+                    <label className="text-sm font-medium text-gray-400">Your Name</label>
+                    <input
+                      type="text"
+                      value={nameInput}
+                      maxLength={60}
+                      onChange={(e) => setNameInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); }}
+                      className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
+                    />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-400">Email Address</label>
-                    <input type="email" defaultValue={`${userName.split(' ')[0].toLowerCase()}@example.com`} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all" />
+                    <label className="text-sm font-medium text-gray-400">Scanned Plants</label>
+                    <p className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white">{plants.length}</p>
                   </div>
                 </div>
 
-                <div className="pt-6 border-t border-border/50 flex justify-end">
-                  <button className="px-6 py-2.5 bg-accent text-black font-semibold rounded-xl hover:bg-accent-secondary transition-colors shadow-glow-accent">
+                <div className="pt-6 border-t border-border/50 flex flex-col-reverse sm:flex-row justify-between gap-3">
+                  <button
+                    onClick={handleLogout}
+                    className="px-6 py-2.5 bg-red-500/10 text-red-400 font-semibold rounded-xl hover:bg-red-500/20 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <LogOut className="w-4 h-4" /> Log out / switch user
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={nameInput.trim() === userName}
+                    className="px-6 py-2.5 bg-accent text-black font-semibold rounded-xl hover:bg-accent-secondary transition-colors shadow-glow-accent disabled:opacity-50"
+                  >
                     Save Changes
                   </button>
                 </div>

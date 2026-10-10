@@ -1,6 +1,6 @@
 import React from 'react';
 import { cn } from '../../utils';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Scan, 
@@ -12,7 +12,7 @@ import {
   FileText, 
   Settings,
   ChevronRight,
-  Leaf
+  X
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useData } from '../../context/DataContext';
@@ -29,8 +29,13 @@ const menuItems = [
   { icon: Settings, label: 'Settings', path: '/settings' },
 ];
 
-export function Sidebar() {
-  const { userName } = useData();
+interface SidebarProps {
+  onClose?: () => void;
+}
+
+export function Sidebar({ onClose }: SidebarProps) {
+  const { userName, plants } = useData();
+  const navigate = useNavigate();
   return (
     <motion.aside 
       initial={{ x: -20, opacity: 0 }}
@@ -41,17 +46,24 @@ export function Sidebar() {
       <div className="flex items-center gap-2 px-2 py-4 mb-6">
         <img src="/logo.png" alt="Plantiva Logo" className="w-8 h-8 object-contain" />
         <span className="font-bold text-lg tracking-wide uppercase text-white">Plantiva</span>
-        <div className="ml-auto w-6 h-6 rounded-md bg-card border border-border flex items-center justify-center cursor-pointer hover:bg-card-hover transition-colors">
-          <ChevronRight className="w-4 h-4 text-gray-400" />
-        </div>
+        {onClose && (
+          <button
+            onClick={onClose}
+            aria-label="Close menu"
+            className="ml-auto w-8 h-8 rounded-md bg-card border border-border flex items-center justify-center hover:bg-card-hover transition-colors"
+          >
+            <X className="w-4 h-4 text-gray-400" />
+          </button>
+        )}
       </div>
 
       {/* Navigation Menu */}
-      <nav className="flex-1 space-y-1">
+      <nav className="flex-1 space-y-1 overflow-y-auto custom-scrollbar">
         {menuItems.map((item) => (
           <NavLink
             key={item.label}
             to={item.path}
+            end={item.path === '/'}
             className={({ isActive }) => cn(
               "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 text-sm font-medium",
               isActive 
@@ -76,7 +88,10 @@ export function Sidebar() {
       </div>
 
       {/* Profile */}
-      <div className="p-3 rounded-xl glass-card flex items-center gap-3 cursor-pointer hover:bg-card-hover transition-colors">
+      <div
+        onClick={() => navigate('/settings')}
+        className="p-3 rounded-xl glass-card flex items-center gap-3 cursor-pointer hover:bg-card-hover transition-colors"
+      >
         <img 
           src="/assets/images/expert_avatar_1785433498995.jpg" 
           alt={userName} 
@@ -84,7 +99,7 @@ export function Sidebar() {
         />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-white truncate">{userName}</p>
-          <p className="text-xs text-accent truncate">Premium Plan</p>
+          <p className="text-xs text-accent truncate">{plants.length} {plants.length === 1 ? 'plant' : 'plants'} scanned</p>
         </div>
       </div>
     </motion.aside>

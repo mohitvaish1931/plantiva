@@ -7,14 +7,19 @@ import {
   Heart
 } from 'lucide-react';
 import { dataService } from '../services/dataService';
+import { STORAGE_KEYS, readJson, normalizePlant, mergePlants } from '../services/session';
 
 interface LandingScreenProps {
   onStart: () => void;
 }
 
+// The free Render backend can take ~50s to wake up; don't keep the user waiting on it.
+const LOGIN_TIMEOUT_MS = 8000;
+
 const LandingScreen: React.FC<LandingScreenProps> = ({ onStart }) => {
   const [userName, setUserName] = useState('');
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Scroll to top when component mounts
   useEffect(() => {
@@ -24,28 +29,31 @@ const LandingScreen: React.FC<LandingScreenProps> = ({ onStart }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = userName.trim();
-    if (!trimmed) return;
-    
+    if (!trimmed || isSubmitting) return;
+    setIsSubmitting(true);
+
+    // Always keep exactly what the user typed, whatever the server says.
+    localStorage.setItem(STORAGE_KEYS.userName, trimmed);
+
     try {
-      const user = await dataService.login(trimmed);
-      localStorage.setItem('learnerbot_username', user.name);
-      localStorage.setItem('learnerbot_plants', JSON.stringify(user.plants || []));
-      setHasSubmitted(true);
-      
-      // Small delay for success animation
-      setTimeout(() => {
-        onStart();
-      }, 900);
+      const user = await Promise.race([
+        dataService.login(trimmed),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Login timed out')), LOGIN_TIMEOUT_MS)),
+      ]);
+      const local = readJson<any[]>(STORAGE_KEYS.plants, []).map(normalizePlant);
+      const remote = user.plants.map(normalizePlant);
+      localStorage.setItem(STORAGE_KEYS.plants, JSON.stringify(mergePlants(local, remote)));
     } catch (err) {
-      console.error("Login failed", err);
-      // Fallback for demo
-      localStorage.setItem('learnerbot_username', trimmed);
-      setHasSubmitted(true);
-      setTimeout(() => onStart(), 900);
+      // Offline or server asleep: continue with the data already on this device.
+      console.warn("Login sync skipped", err);
     }
+
+    setHasSubmitted(true);
+    // Small delay for success animation
+    setTimeout(() => onStart(), 900);
   };
 
-  const disabled = !userName.trim();
+  const disabled = !userName.trim() || isSubmitting;
 
   return (
     <motion.div
@@ -139,6 +147,7 @@ const LandingScreen: React.FC<LandingScreenProps> = ({ onStart }) => {
                 onChange={(e) => setUserName(e.target.value)}
                 placeholder="What's your name?"
                 className="w-full pl-12 pr-4 py-3 rounded-lg bg-white/20 text-white text-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/50 placeholder:text-white/50 transition-all backdrop-blur-sm"
+                maxLength={60}
                 autoFocus
               />
             </div>
@@ -154,7 +163,7 @@ const LandingScreen: React.FC<LandingScreenProps> = ({ onStart }) => {
                   : 'bg-gradient-to-r from-green-400 to-emerald-500 text-white border-white/30 shadow-xl hover:shadow-2xl'
               }`}
             >
-              <span>{disabled ? 'Enter your name' : 'Start My Journey'}</span>
+              <span>{isSubmitting ? 'Signing you in...' : disabled ? 'Enter your name' : 'Start My Journey'}</span>
               {!disabled && <ArrowRight className="w-5 h-5" />}
             </motion.button>
 

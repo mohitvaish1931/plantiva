@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { AlertTriangle, ChevronRight, Leaf, Bell } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { cn } from '../../../utils';
 import { useData } from '../../../context/DataContext';
 
@@ -11,13 +12,14 @@ const itemVariants = {
 
 export function PredictionCard() {
   const { alerts, plants } = useData();
+  const navigate = useNavigate();
   const displayAlerts = alerts.filter(a => a.type !== 'resolved').slice(0, 2);
 
   return (
     <motion.div variants={itemVariants} className="glass-card p-5 h-full flex flex-col">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-sm font-semibold tracking-wide text-gray-300">PREDICTIVE ALERTS</h3>
-        <button className="text-xs text-gray-400 hover:text-white transition-colors flex items-center gap-1">
+        <button onClick={() => navigate('/predictive-alerts')} className="text-xs text-gray-400 hover:text-white transition-colors flex items-center gap-1">
           View All <ChevronRight className="w-3 h-3" />
         </button>
       </div>
@@ -26,6 +28,7 @@ export function PredictionCard() {
         {displayAlerts.map(alert => (
           <motion.div 
             key={alert.id}
+            onClick={() => navigate('/predictive-alerts')}
             whileHover={{ scale: 1.02 }}
             className={cn(
               "p-4 rounded-xl border cursor-pointer group flex items-start gap-3 transition-colors",
@@ -47,6 +50,7 @@ export function PredictionCard() {
 
         {displayAlerts.length < 2 && (
           <motion.div 
+            onClick={() => navigate(plants.length ? '/my-collection' : '/scan-plant')}
             whileHover={{ scale: 1.02 }}
             className="p-4 rounded-xl border border-accent/30 bg-accent/10 cursor-pointer group flex items-start gap-3 transition-colors hover:bg-accent/20"
           >
@@ -58,7 +62,7 @@ export function PredictionCard() {
                 <h4 className="text-sm font-medium text-accent group-hover:text-accent-secondary transition-colors">Active Collection</h4>
                 <ChevronRight className="w-4 h-4 text-accent/50 group-hover:text-accent transition-colors" />
               </div>
-              <p className="text-xs text-accent/80 leading-relaxed">{plants.length} plant models are being monitored and synced.</p>
+              <p className="text-xs text-accent/80 leading-relaxed">{plants.length ? `${plants.length} scanned ${plants.length === 1 ? 'plant is' : 'plants are'} being monitored.` : 'No plants yet. Scan one to start monitoring.'}</p>
             </div>
           </motion.div>
         )}

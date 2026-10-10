@@ -8,9 +8,25 @@ export function PlantCarePage() {
   const { tasks, toggleTaskComplete } = useData();
   const [filter, setFilter] = useState<'pending' | 'completed'>('pending');
 
-  const toggleTask = (id: number) => {
+  const toggleTask = (id: string) => {
     toggleTaskComplete(id);
   };
+
+  const today = new Date();
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - today.getDay());
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(weekStart);
+    d.setDate(weekStart.getDate() + i);
+    return d;
+  });
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  const hasTaskOn = (d: Date) =>
+    (d.toDateString() === today.toDateString() && tasks.some(t => t.dueDate === 'Today')) ||
+    (d.toDateString() === tomorrow.toDateString() && tasks.some(t => t.dueDate === 'Tomorrow'));
+  const countOf = (type: CareTask['type']) => tasks.filter(t => t.type === type).length;
+  const plural = (n: number) => `${n} ${n === 1 ? 'task' : 'tasks'}`;
 
   const filteredTasks = tasks.filter(t => filter === 'completed' ? t.isCompleted : !t.isCompleted);
 
@@ -115,16 +131,16 @@ export function PlantCarePage() {
           <div className="glass-card border border-border rounded-3xl p-6 sticky top-6">
             <div className="flex items-center gap-3 mb-6">
               <CalendarIcon className="w-5 h-5 text-accent" />
-              <h3 className="font-semibold text-white">This Week</h3>
+              <h3 className="font-semibold text-white">This Week · {today.toLocaleDateString([], { month: 'long' })}</h3>
             </div>
             
             <div className="grid grid-cols-7 gap-2 mb-6">
               {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
                 <div key={i} className="text-center text-xs font-medium text-gray-500">{day}</div>
               ))}
-              {Array.from({ length: 7 }).map((_, i) => {
-                const isToday = i === 3;
-                const hasTask = i === 3 || i === 4;
+              {weekDays.map((day, i) => {
+                const isToday = day.toDateString() === today.toDateString();
+                const hasTask = hasTaskOn(day);
                 return (
                   <div 
                     key={i} 
@@ -133,7 +149,7 @@ export function PlantCarePage() {
                       isToday ? "bg-accent text-black font-bold shadow-glow-accent" : "text-gray-300 hover:bg-card-hover cursor-pointer"
                     )}
                   >
-                    {12 + i}
+                    {day.getDate()}
                     {hasTask && !isToday && (
                       <div className="absolute bottom-1 w-1 h-1 rounded-full bg-accent" />
                     )}
@@ -143,19 +159,19 @@ export function PlantCarePage() {
             </div>
 
             <div className="p-4 rounded-2xl bg-card border border-border/50">
-              <h4 className="text-sm font-medium text-white mb-2">Weekly Summary</h4>
+              <h4 className="text-sm font-medium text-white mb-2">Current Tasks</h4>
               <div className="space-y-2 text-sm text-gray-400">
                 <div className="flex justify-between">
                   <span>Watering</span>
-                  <span className="text-white">12 tasks</span>
+                  <span className="text-white">{plural(countOf('water'))}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Fertilizing</span>
-                  <span className="text-white">3 tasks</span>
+                  <span className="text-white">{plural(countOf('fertilize'))}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Pruning</span>
-                  <span className="text-white">1 task</span>
+                  <span className="text-white">{plural(countOf('prune'))}</span>
                 </div>
               </div>
             </div>

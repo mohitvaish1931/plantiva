@@ -51,6 +51,10 @@ export interface Plant {
   species?: string;
   image?: string | null;
   healthScore: number;
+  confidence?: number | null;
+  disease?: string;
+  status?: string;
+  scanMode?: string;
   diagnosis?: string;
   treatment?: string;
   lastWatered?: string;

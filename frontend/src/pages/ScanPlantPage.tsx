@@ -1,14 +1,14 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Camera, Upload, Scan, Loader2, Sparkles, Send, Leaf, BrainCircuit, Mic, MicOff, Bug, Activity, Droplets, FileText } from 'lucide-react';
+import { Camera, Upload, Scan, Send, Leaf, BrainCircuit, Mic, MicOff, Bug, Activity, Droplets, FileText } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { cn } from '../utils';
-import { apiService, ChatMessage } from '../services/apiService';
-import { scanHistoryService } from '../services/scanHistoryService';
+import { cn, compressImage } from '../utils';
+import { apiService, ChatMessage, ScanAnalysis } from '../services/apiService';
 import { LiveScanner } from '../components/camera/LiveScanner';
 import { useVoiceCommands, VoiceAction } from '../hooks/useVoiceCommands';
 import { ReportModal } from '../components/ReportModal';
 import { useData } from '../context/DataContext';
+import { Plant } from '../types';
 
 type ScanMode = 'disease' | 'identity' | 'pest' | 'nutrition' | 'growth';
 
@@ -21,6 +21,7 @@ type Message = {
   timestamp: Date;
   imageUrl?: string;
   isRichResult?: boolean;
+  isError?: boolean;
 };
 
 const SCAN_MODES: { id: ScanMode; icon: any; label: string }[] = [
@@ -31,29 +32,46 @@ const SCAN_MODES: { id: ScanMode; icon: any; label: string }[] = [
   { id: 'growth', icon: Leaf, label: 'Growth Analysis' },
 ];
 
+/** Used only when the AI reply has no structured block: read the report text instead of guessing. */
+function analysisFromText(text: string): ScanAnalysis {
+  const lower = text.toLowerCase();
+  const confidenceMatch = text.match(/confidence[^0-9]{0,20}(\d{1,3})\s*%/i);
+  const nameMatch = text.match(/plant identity[^:]*:\s*\**\s*([^\n*(,]+)/i);
+  let healthScore = 75;
+  if (/\b(critical|severe|dying|dead|rotting|advanced stage)\b/.test(lower)) healthScore = 40;
+  else if (/\b(disease|infection|infected|blight|fungal|bacterial|pest|mites|aphids|deficien|spots?)\b/.test(lower)) healthScore = 62;
+  else if (/\b(healthy|thriving|no signs of)\b/.test(lower)) healthScore = 90;
+  return {
+    plantName: nameMatch?.[1]?.trim().slice(0, 60) || 'Scanned Plant',
+    species: 'Unknown',
+    healthScore,
+    confidence: confidenceMatch ? Math.min(100, Number(confidenceMatch[1])) : null,
+    disease: 'See report',
+    status: healthScore >= 80 ? 'Healthy' : healthScore >= 55 ? 'Needs Attention' : 'Critical',
+  };
+}
+
 export function ScanPlantPage() {
-  const { addPlant } = useData();
+  const { addPlant, locationContext } = useData();
   const [scanState, setScanState] = useState<ScanState>('idle');
   const [scanMode, setScanMode] = useState<ScanMode>('disease');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isReportOpen, setIsReportOpen] = useState(false);
-  
+  const [lastScan, setLastScan] = useState<Plant | null>(null);
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       role: 'assistant',
-      content: "Hello! Tap 'Open Camera' to start scanning. You can talk to me directly by tapping the microphone icon!",
+      content: "Hello! Tap 'Open Camera' or 'Upload Photo' to scan a plant. You can also ask me questions or use voice commands with the microphone.",
       timestamp: new Date()
     }
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  // Ref for triggering capture from voice commands
-  const captureFrameRef = useRef<() => string | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -66,10 +84,11 @@ export function ScanPlantPage() {
   const handleSendMessage = async (content: string, imageToAnalyze?: string) => {
     if ((!content.trim() && !imageToAnalyze) || isTyping) return;
 
+    const modeLabel = SCAN_MODES.find(m => m.id === scanMode)?.label.toLowerCase();
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: content.trim() || `Analyzing for ${SCAN_MODES.find(m => m.id === scanMode)?.label.toLowerCase()}...`,
+      content: content.trim() || `Analyzing for ${modeLabel}...`,
       timestamp: new Date(),
       imageUrl: imageToAnalyze
     };
@@ -77,59 +96,68 @@ export function ScanPlantPage() {
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setIsTyping(true);
-    
+
     if (imageToAnalyze) {
       setScanState('scanning');
     }
 
     try {
-      const history: ChatMessage[] = messages.map(m => ({
-        role: m.role,
-        content: m.content
-      }));
+      const history: ChatMessage[] = messages
+        .filter(m => !m.isError)
+        .map(m => ({ role: m.role, content: m.content }));
 
-      // Append mode context
-      const contextualContent = `[Mode: ${scanMode}] ${content.trim() || 'Analyze this image.'}`;
+      // Smaller uploads are faster and well within what the vision model needs.
+      const uploadImage = imageToAnalyze ? await compressImage(imageToAnalyze, 1280, 0.85) : undefined;
 
-      const response = await apiService.sendMessage(contextualContent, history, imageToAnalyze);
-      
+      const response = await apiService.sendMessage(
+        `[Mode: ${scanMode}] ${content.trim() || 'Analyze this image.'}`,
+        history,
+        { imageDataUrl: uploadImage, locationContext, scanMode }
+      );
+
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: response.message,
         timestamp: new Date(),
-        isRichResult: !!imageToAnalyze // Treat direct image analysis as a rich result capable output
+        isRichResult: !!imageToAnalyze && !response.error,
+        isError: !!response.error
       };
 
       setMessages(prev => [...prev, botMessage]);
-      
+
       if (imageToAnalyze) {
         setScanState('results');
-        
-        // Save to My Collection
-        addPlant({
-          id: Date.now().toString(),
-          name: 'Scanned Plant',
-          species: scanMode === 'identity' ? 'Identified Species' : 'AI Analyzed',
-          image: imageToAnalyze,
-          healthScore: Math.floor(Math.random() * (100 - 65 + 1) + 65), // Simulated health score
-          diagnosis: response.message.substring(0, 150) + '...',
-          addedAt: new Date().toISOString(),
-          timeline: [{
-            id: Date.now().toString(),
-            date: new Date().toISOString().split('T')[0],
-            status: scanMode === 'disease' ? 'Diagnosed' : 'Scanned',
-            healthScore: 85
-          }]
-        });
+        // Don't put a failed scan into the collection.
+        if (response.error) return;
 
-        // Save to history
-        scanHistoryService.saveScan({
-          imageUrl: imageToAnalyze,
-          disease: scanMode === 'disease' ? 'Analysis Complete' : undefined,
-          plantName: 'Scanned Plant',
-          confidence: 'High'
-        });
+        const fromText = analysisFromText(response.message);
+        const analysis = response.analysis || fromText;
+        const healthScore = analysis.healthScore ?? fromText.healthScore ?? 75;
+        const thumbnail = await compressImage(imageToAnalyze, 360, 0.7);
+        const now = new Date();
+        const plant: Plant = {
+          id: now.getTime().toString(),
+          name: analysis.plantName && analysis.plantName !== 'Unknown' ? analysis.plantName : 'Scanned Plant',
+          species: analysis.species && analysis.species !== 'Unknown' ? analysis.species : undefined,
+          image: thumbnail,
+          healthScore,
+          confidence: analysis.confidence ?? fromText.confidence,
+          disease: analysis.disease,
+          status: analysis.status,
+          scanMode,
+          diagnosis: response.message,
+          addedAt: now.toISOString(),
+          timeline: [{
+            id: now.getTime().toString(),
+            date: now.toISOString().split('T')[0],
+            status: scanMode === 'disease' ? 'Diagnosed' : 'Scanned',
+            healthScore
+          }]
+        };
+
+        addPlant(plant);
+        setLastScan(plant);
 
         // Automatically open the report modal to show generated tasks and details
         setIsReportOpen(true);
@@ -139,8 +167,9 @@ export function ScanPlantPage() {
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: "I'm having a little trouble connecting to my neural network right now. Could you please try asking again?",
+        content: "I couldn't process that. Please try again.",
         timestamp: new Date(),
+        isError: true,
       }]);
       if (imageToAnalyze) {
         setScanState('results');
@@ -150,10 +179,14 @@ export function ScanPlantPage() {
     }
   };
 
+  // Camera and voice callbacks are memoised; always call the latest send function.
+  const sendRef = useRef(handleSendMessage);
+  sendRef.current = handleSendMessage;
+
   const handleCapture = useCallback((dataUrl: string) => {
     setSelectedImage(dataUrl);
     setScanState('scanning');
-    handleSendMessage(`Analyze this for ${SCAN_MODES.find(m => m.id === scanMode)?.label.toLowerCase()}`, dataUrl);
+    sendRef.current(`Analyze this for ${SCAN_MODES.find(m => m.id === scanMode)?.label.toLowerCase()}`, dataUrl);
   }, [scanMode]);
 
   const handleVoiceCommand = useCallback((action: VoiceAction) => {
@@ -168,14 +201,10 @@ export function ScanPlantPage() {
         setInputValue(prev => prev + " (Command: Toggle Flash) ");
         break;
       case 'QUERY':
-        if (scanState === 'camera_active') {
-          handleSendMessage(action.payload);
-        } else {
-          handleSendMessage(action.payload);
-        }
+        sendRef.current(action.payload);
         break;
     }
-  }, [scanState]);
+  }, []);
 
   const { isListening, isSupported, toggleListening } = useVoiceCommands({
     onCommand: handleVoiceCommand
@@ -183,6 +212,7 @@ export function ScanPlantPage() {
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = ''; // allow picking the same file again
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -208,12 +238,12 @@ export function ScanPlantPage() {
 
   return (
     <div className="max-w-[1400px] mx-auto h-[calc(100vh-8rem)] flex flex-col pb-6 space-y-6">
-      
+
       {/* Header & Modes */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 shrink-0">
         <div>
           <h1 className="text-3xl font-light text-white mb-4">AI Scanner</h1>
-          
+
           {/* Mode Selector */}
           <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2 max-w-[600px]">
             {SCAN_MODES.map(mode => {
@@ -225,8 +255,8 @@ export function ScanPlantPage() {
                   onClick={() => setScanMode(mode.id)}
                   className={cn(
                     "flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition-all whitespace-nowrap",
-                    isActive 
-                      ? "bg-accent/20 border-accent text-accent shadow-glow-accent" 
+                    isActive
+                      ? "bg-accent/20 border-accent text-accent shadow-glow-accent"
                       : "bg-card/50 border-border text-gray-400 hover:text-gray-200 hover:bg-card-hover"
                   )}
                 >
@@ -237,17 +267,19 @@ export function ScanPlantPage() {
             })}
           </div>
         </div>
-        
+
         {scanState === 'results' && (
-          <div className="flex gap-3">
-            <button 
+          <div className="flex flex-wrap gap-3">
+            {lastScan && (
+            <button
               onClick={() => setIsReportOpen(true)}
               className="flex items-center gap-2 px-6 py-3 rounded-full bg-accent/20 border border-accent/40 text-accent hover:bg-accent/30 transition-colors text-sm font-medium shadow-glow-accent"
             >
               <FileText className="w-4 h-4" />
               View Diagnostic Report
             </button>
-            <button 
+            )}
+            <button
               onClick={() => setScanState('camera_active')}
               className="flex items-center gap-2 px-6 py-3 rounded-full bg-card border border-border hover:bg-card-hover transition-colors text-sm text-white"
             >
@@ -260,10 +292,10 @@ export function ScanPlantPage() {
 
       {/* Main Content Area */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 min-h-0">
-        
+
         {/* Left Column: Camera / Image View */}
         <div className="lg:col-span-5 flex flex-col min-h-0">
-          <motion.div 
+          <motion.div
             layout
             className={cn(
               "relative rounded-3xl overflow-hidden glass-card border flex-1 flex flex-col items-center justify-center min-h-[400px] transition-colors",
@@ -272,7 +304,7 @@ export function ScanPlantPage() {
           >
             <AnimatePresence mode="wait">
               {scanState === 'idle' && (
-                <motion.div 
+                <motion.div
                   key="idle"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -284,23 +316,23 @@ export function ScanPlantPage() {
                   </div>
                   <h3 className="text-xl font-medium text-white mb-2">Initialize Scanner</h3>
                   <p className="text-gray-400 mb-8 text-sm leading-relaxed">Launch the AI-powered camera to detect diseases, analyze soil, or identify plants instantly.</p>
-                  
+
                   <div className="flex flex-col gap-4 justify-center">
-                    <button 
+                    <button
                       onClick={() => setScanState('camera_active')}
                       className="flex-1 flex items-center justify-center gap-2 bg-accent text-black font-semibold px-6 py-4 rounded-2xl hover:bg-accent-secondary transition-colors"
                     >
                       <Camera className="w-5 h-5" />
                       Open Camera
                     </button>
-                    <input 
+                    <input
                       type="file"
                       accept="image/*"
                       ref={fileInputRef}
                       className="hidden"
                       onChange={handleFileUpload}
                     />
-                    <button 
+                    <button
                       onClick={() => fileInputRef.current?.click()}
                       className="flex-1 flex items-center justify-center gap-2 bg-card border border-border text-white font-medium px-6 py-3 rounded-xl hover:bg-card-hover transition-colors"
                     >
@@ -319,12 +351,12 @@ export function ScanPlantPage() {
                   exit={{ opacity: 0 }}
                   className="absolute inset-0 w-full h-full"
                 >
-                  <LiveScanner 
-                    isActive={scanState === 'camera_active'} 
+                  <LiveScanner
+                    isActive={scanState === 'camera_active'}
                     onCapture={handleCapture}
                   />
                   {/* Close Camera Button */}
-                  <button 
+                  <button
                     onClick={resetScan}
                     className="absolute top-4 left-1/2 -translate-x-1/2 px-4 py-2 bg-black/60 backdrop-blur-md border border-white/20 rounded-full text-xs text-white z-30 hover:bg-white/20"
                   >
@@ -334,22 +366,22 @@ export function ScanPlantPage() {
               )}
 
               {(scanState === 'scanning' || scanState === 'results') && selectedImage && (
-                <motion.div 
+                <motion.div
                   key="active-scan"
                   initial={{ opacity: 0, scale: 1.05 }}
                   animate={{ opacity: 1, scale: 1 }}
                   className="absolute inset-0 w-full h-full"
                 >
                   <img src={selectedImage} alt="Scanning subject" className="w-full h-full object-cover" />
-                  
+
                   {/* Scanning Overlay Effects */}
                   {scanState === 'scanning' && (
                     <>
                       <div className="absolute inset-0 bg-black/60" />
-                      
+
                       {/* Grid overlay */}
                       <div className="absolute inset-0 bg-[linear-gradient(rgba(16,185,129,0.3)_1px,transparent_1px),linear-gradient(90deg,rgba(16,185,129,0.3)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,#000_70%,transparent_100%)]" />
-                      
+
                       {/* Scanning Laser Line */}
                       <motion.div
                         animate={{ top: ['0%', '100%', '0%'] }}
@@ -376,7 +408,7 @@ export function ScanPlantPage() {
         {/* Right Column: Chat Results */}
         <div className="lg:col-span-7 flex flex-col min-h-0">
           <div className="flex-1 glass-card border border-border rounded-3xl overflow-hidden flex flex-col relative bg-card/30">
-            
+
             {/* Header */}
             <div className="p-4 border-b border-border/50 bg-background/50 backdrop-blur-md flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -393,12 +425,12 @@ export function ScanPlantPage() {
               </div>
               <div className="flex gap-2">
                 {isSupported && (
-                  <button 
+                  <button
                     onClick={toggleListening}
                     className={cn(
                       "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-colors border",
-                      isListening 
-                        ? "bg-red-500/10 text-red-400 border-red-500/30" 
+                      isListening
+                        ? "bg-red-500/10 text-red-400 border-red-500/30"
                         : "bg-card border-border text-gray-400 hover:text-white"
                     )}
                   >
@@ -425,8 +457,8 @@ export function ScanPlantPage() {
                     {/* Avatar */}
                     <div className={cn(
                       "shrink-0 w-8 h-8 rounded-full flex items-center justify-center border",
-                      message.role === 'assistant' 
-                        ? "bg-accent/10 border-accent/30 shadow-glow-accent" 
+                      message.role === 'assistant'
+                        ? "bg-accent/10 border-accent/30 shadow-glow-accent"
                         : "bg-white/10 border-white/20"
                     )}>
                       {message.role === 'assistant' ? <Leaf className="w-4 h-4 text-accent" /> : <div className="w-4 h-4 bg-gray-400 rounded-full" />}
@@ -437,8 +469,10 @@ export function ScanPlantPage() {
                       "rounded-2xl p-4 text-sm leading-relaxed overflow-hidden",
                       message.role === 'user'
                         ? "bg-accent text-black font-medium"
-                        : message.isRichResult 
-                          ? "bg-card border border-accent/30 shadow-glow-accent/20 w-full" 
+                        : message.isError
+                          ? "bg-red-500/10 border border-red-500/30 text-gray-200"
+                        : message.isRichResult
+                          ? "bg-card border border-accent/30 shadow-glow-accent/20 w-full"
                           : "bg-card border border-border/50 text-gray-200"
                     )}>
                       {message.imageUrl && (
@@ -446,7 +480,7 @@ export function ScanPlantPage() {
                           <img src={message.imageUrl} alt="Uploaded" className="w-full max-w-[250px] h-auto object-cover" />
                         </div>
                       )}
-                      
+
                       {message.role === 'user' ? (
                         message.content
                       ) : (
@@ -470,7 +504,7 @@ export function ScanPlantPage() {
                     </div>
                   </motion.div>
                 ))}
-                
+
                 {isTyping && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
@@ -520,14 +554,20 @@ export function ScanPlantPage() {
 
       </div>
 
-      <ReportModal
-        isOpen={isReportOpen}
-        onClose={() => setIsReportOpen(false)}
-        plantName="Scanned Plant"
-        image={selectedImage || ''}
-        diagnosis={messages[messages.length - 1]?.content || 'Diagnosis pending...'}
-        healthScore={85} // Ideally pulled from state, but mocked here to match collection logic
-      />
+      {lastScan && (
+        <ReportModal
+          isOpen={isReportOpen}
+          onClose={() => setIsReportOpen(false)}
+          plantName={lastScan.name}
+          species={lastScan.species}
+          image={selectedImage || lastScan.image || ''}
+          diagnosis={lastScan.diagnosis || 'Diagnosis pending...'}
+          healthScore={lastScan.healthScore}
+          confidence={lastScan.confidence}
+          disease={lastScan.disease}
+          status={lastScan.status}
+        />
+      )}
     </div>
   );
 }
